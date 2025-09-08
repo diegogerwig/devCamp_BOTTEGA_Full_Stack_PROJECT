@@ -8,12 +8,12 @@ Your Capstone Project Proposal must be approved by an FSD instructor or teaching
 
 ## 📋 Capstone Project Requirements
 
-- You must build a full stack web application that incorporates microservices architecture and utilizes at least 60% original code from tools learned within the course.
+You must build a full stack web application that incorporates microservices architecture and utilizes at least 60% original code from tools learned within the course.
   - **Front End** - The front end must be built using React
   - **API** - The front end must communicate with the back end via an API call which enables CRUD (create, read, update, delete) functionality
   - **Back End / Database** - The back end must be built using Python or another back end language in conjunction with a database (e.g., SQLite, MySQL, MongoDB, Redis) learned in the course. Integrating other languages or tools is acceptable with TA permission.
 
-- You must demonstrate proficiency with topics covered in the course.
+You must demonstrate proficiency with topics covered in the course.
 
 ### 🛠️ Languages and Technologies (at least six from this list):
 - HTML
@@ -43,21 +43,21 @@ Your Capstone Project Proposal must be approved by an FSD instructor or teaching
 - Software Engineering
 - Problem Solving
 
-- You must incorporate one tool or feature that you did not learn in the course, but acquired through your continuous and expanding study of software development. (Items such as new languages or frameworks are allowed but need to be approved by a TA or instructor). Examples include:
+You must incorporate one tool or feature that you did not learn in the course, but acquired through your continuous and expanding study of software development. (Items such as new languages or frameworks are allowed but need to be approved by a TA or instructor). Examples include:
   - Search bar
   - Image carousel
   - Payment processing
   - UI component library
   - Third party API (weather, music, information, etc.)
 
-- Your application must be mobile responsive.
+Your application must be mobile responsive.
   - If this is not feasible, explain your situation to a TA or instructor before submission (e.g., browser-based game, detailed data visualizations).
 
-- Your front end and back end must be hosted and operational. You may use any hosting service (e.g., Heroku) and must provide working links in your documents.
+Your front end and back end must be hosted and operational. You may use any hosting service (e.g., Heroku) and must provide working links in your documents.
 
-- Your project must include documentation. Auto-generated readme files will not count, your code repositories must have essential information about your project (tools used, languages use, key functionality, etc.).
+Your project must include documentation. Auto-generated readme files will not count, your code repositories must have essential information about your project (tools used, languages use, key functionality, etc.).
 
-- Use of tutorials is permitted. However, tutorial-derived material may not constitute more than 40% of your capstone project.
+Use of tutorials is permitted. However, tutorial-derived material may not constitute more than 40% of your capstone project.
 
 ## 💡 Examples of Approved Projects
 
