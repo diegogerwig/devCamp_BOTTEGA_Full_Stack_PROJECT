@@ -99,7 +99,7 @@ You will need a Bottega Canvas account in order to upload your final capstone do
 
 If you do not have a Bottega Canvas account or need a refresher on how to access Canvas, email fullstack@bottega.edu. Please do not send your final capstone documents directly to a TA or peer mentor.
 
-**NOTE ON SUBMISSIONS (VASS STUDENTS ONLY):** The 2023-2024 VASS Group will not be using Canvas for project submission.
+**NOTE ON SUBMISSIONS (VASS STUDENTS ONLY):** The 2025 VASS Group will not be using Canvas for project submission.
 - Please email your project submission document to fullstack@bottega.edu.
 - Your project submission document must be in PDF format.
 - PROJECT SUBMISSION DOCUMENT TEMPLATE
