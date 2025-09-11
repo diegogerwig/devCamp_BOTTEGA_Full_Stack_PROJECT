@@ -16,7 +16,6 @@ Digitalizar y simplificar el registro de la jornada laboral y la solicitud de pe
 *   **Back-end:** Flask (Python)
 *   **Base de Datos:** PostgreSQL
 *   **Despliegue:** render.com
-*   **Autenticación:** JWT
 
 ## 5. Cronograma del Proyecto 
 | Fase | Descripción | Jornadas Estimadas |
