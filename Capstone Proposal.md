@@ -4,7 +4,7 @@
 **TimeTracer** - Sistema Básico de Gestión de Jornada y Ausencias
 
 ## 2. Propósito
-Digitalizar y simplificar el registro de la jornada laboral y la solicitud de permisos para un entorno de pequeña empresa, reemplazando sistemas obsoletos como las hojas de cálculo.
+Digitalizar y simplificar el registro de la jornada laboral y la solicitud de permisos para un entorno de pequeña empresa, reemplazando sistemas obsoletos (hojas de cálculo, formularios en papel, etc).
 
 ## 3. Usuarios Finales
 *   **Admin:** Acceso total a todos los datos.
@@ -15,10 +15,10 @@ Digitalizar y simplificar el registro de la jornada laboral y la solicitud de pe
 *   **Front-end:** React.js con Tailwind CSS
 *   **Back-end:** Flask (Python)
 *   **Base de Datos:** PostgreSQL
-*   **Despliegue:** Render.com
+*   **Despliegue:** render.com
 *   **Autenticación:** JWT
 
-## 5. Cronograma del Proyecto TimeTracer 
+## 5. Cronograma del Proyecto 
 
 | Fase | Descripción | Jornadas Estimadas |
 | :--- | :--- | :--- |
