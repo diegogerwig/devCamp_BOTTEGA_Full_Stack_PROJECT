@@ -1,10 +1,10 @@
 # TimeTracer - Sistema de Gestión de Jornada Laboral
 
 ## 📋 Subject
-[Enlace al documento del subject](/doc/subject)
+[Enlace al documento del subject](./doc/Capstone%20Requirements.md)
 
 ## 📄 Propuesta del Proyecto
-[Enlace a la propuesta completa](/doc/proposal)
+[Enlace a la propuesta completa](./doc/Capstone%20Proposal.md)
 
 ## 🚀 Introducción
 
