@@ -19,7 +19,6 @@ Digitalizar y simplificar el registro de la jornada laboral y la solicitud de pe
 *   **Autenticación:** JWT
 
 ## 5. Cronograma del Proyecto 
-
 | Fase | Descripción | Jornadas Estimadas |
 | :--- | :--- | :--- |
 | **Fase 1: Planificación y Setup** | Definir modelos de datos, diseñar wireframes básicos y configurar repositorio Git y base de datos en Render. | 2 |
