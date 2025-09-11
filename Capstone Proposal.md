@@ -20,12 +20,12 @@ Digitalizar y simplificar el registro de la jornada laboral y la solicitud de pe
 
 ## 5. Cronograma del Proyecto TimeTracer 
 
-| Fase | Descripción | Jornadas Estimadas | Días Totales |
-| :--- | :--- | :--- | :--- |
-| **Fase 1: Planificación y Setup** | Definir modelos de datos, diseñar wireframes básicos y configurar repositorio Git y base de datos en Render. | 2 | 2 |
-| **Fase 2: Núcleo del Backend (Flask)** | Crear modelos de BD, autenticación JWT y endpoints básicos (registros de jornada y solicitudes). | 5 | 7 |
-| **Fase 3: Núcleo del Frontend (React)** | Implementar login, dashboard, componentes de registro de jornada y gestión de solicitudes. | 6 | 13 |
-| **Fase 4: Funcionalidad de Roles** | Desarrollar paneles de Admin y Jefe con capacidades de aprobación y gestión. | 5 | 18 |
-| **Fase 5: Despliegue y Documentación** | Testing final, despliegue en Render y redacción del README.md. | 3 | **21** |
+| Fase | Descripción | Jornadas Estimadas |
+| :--- | :--- | :--- |
+| **Fase 1: Planificación y Setup** | Definir modelos de datos, diseñar wireframes básicos y configurar repositorio Git y base de datos en Render. | 2 |
+| **Fase 2: Núcleo del Backend (Flask)** | Crear modelos de BD, autenticación JWT y endpoints básicos (registros de jornada y solicitudes). | 5 |
+| **Fase 3: Núcleo del Frontend (React)** | Implementar login, dashboard, componentes de registro de jornada y gestión de solicitudes. | 6 |
+| **Fase 4: Funcionalidad de Roles** | Desarrollar paneles de Admin y Jefe con capacidades de aprobación y gestión. | 5 |
+| **Fase 5: Despliegue y Documentación** | Testing final, despliegue en Render y redacción del README.md. | 3 |
 
 **Total de jornadas estimadas: 21 días**
