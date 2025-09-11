@@ -1,47 +1,46 @@
 # Propuesta de Proyecto de Desarrollo Web
 
 ## 1. Título del Proyecto
-**EcoTrackr** - Rastreador Personal de Huella de Carbono y Hábitos Sostenibles
+**TimeTracer** - Gestión Inteligente de Ausencias y Jornada Laboral
 
 ## 2. Propósito o Problema a Resolver
-El propósito de esta aplicación es abordar la creciente preocupación por el cambio climático y la desconexión entre la conciencia ambiental y la acción individual. El problema específico que resuelve es la falta de una herramienta fácil de usar que permita a los usuarios:
-*   **Medir y comprender** su impacto ambiental personal de manera cuantificable (huella de carbono).
-*   **Rastrear sus hábitos** diarios relacionados con el consumo de energía, transporte, dieta y residuos.
-*   **Recibir recomendaciones personalizadas** y accionables para reducir su impacto.
-*   **Visualizar su progreso** a lo largo del tiempo, motivándolos a mantener un estilo de vida más sostenible.
+El propósito de esta aplicación es modernizar y digitalizar la gestión de la asistencia y las ausencias en el entorno laboral. El problema específico que resuelve es la ineficiencia de los sistemas tradicionales (hojas de cálculo, papel) para:
+*   **Centralizar y automatizar** la solicitud y aprobación de vacaciones, permisos y días libres.
+*   **Registrar de forma fiable** la jornada laboral diaria (entradas y salidas) de cada empleado.
+*   **Reducir errores administrativos** y proporcionar una visión clara y en tiempo real del calendario de ausencias de toda la empresa.
+*   **Empoderar a los empleados** dándoles acceso inmediato al estado de sus solicitudes y su historial, mejorando la transparencia.
 
 ## 3. Usuario Final Previsto
-El usuario final principal es un **adulto consciente del medio ambiente**, de entre 20 y 45 años, que:
-*   Vive en zonas urbanas o suburbanas.
-*   Tiene acceso a un smartphone y/o computadora y está familiarizado con las aplicaciones web.
-*   Está interesado en la sostenibilidad pero no sabe por dónde empezar o cómo medir su progreso.
-*   Puede estar motivado por comunidades y la comparación saludable (gamificación).
+La aplicación está dirigida a tres tipos de usuarios finales dentro de una pequeña o mediana empresa:
+*   **Administradores (HR/Admin):** Personal de recursos humanos o administración que necesita acceso total para gestionar usuarios, roles y auditar toda la actividad.
+*   **Jefes de equipo/Managers:** Responsables de departamento que necesitan aprobar o rechazar solicitudes de su equipo y supervisar su asistencia.
+*   **Trabajadores/Empleados:** El resto de la plantilla, que necesita solicitar días libres y registrar sus horarios de entrada y salida de forma sencilla.
 
 ## 4. Tecnologías y Lenguajes a Emplear
-Se espera emplear un stack tecnológico moderno y robusto dividido en front-end y back-end:
+Se empleará un stack tecnológico robusto y moderno, dividido en front-end y back-end:
 
 ### Front-end (Cliente)
 *   **Lenguaje:** JavaScript (ES6+)
-*   **Framework/Librería:** React.js (con Hooks) para construir una interfaz de usuario interactiva y dinámica.
-*   **Estilo:** CSS3 con un framework como Tailwind CSS o Bootstrap para un diseño responsive y ágil.
-*   **Gráficos:** Una librería como Chart.js o D3.js para visualizar los datos de la huella de carbono y el progreso.
+*   **Framework/Librería:** React.js (con Hooks y Context API o Redux para gestión de estado) para construir una interfaz de usuario interactiva, dinámica y SPA.
+*   **Estilo:** CSS3 con un framework como **Tailwind CSS** para un diseño utilitario, responsive y ágil.
+*   **Gráficos:** Chart.js para visualizaciones de resumen de horas o ausencias (si se requirieran).
 
 ### Back-end (Servidor)
-*   **Lenguaje:** JavaScript (Node.js)
-*   **Framework:** Express.js para crear la API RESTful.
-*   **Base de Datos:** MongoDB (una base de datos NoSQL) con Mongoose como ODM para almacenar datos de usuarios, hábitos y cálculos de huella de carbono.
-*   **Autenticación:** JSON Web Tokens (JWT) para la gestión segura de sesiones de usuario.
+*   **Lenguaje:** Python
+*   **Framework:** Flask (junto con bibliotecas como Flask-SQLAlchemy, Flask-JWT-Extended, Flask-CORS).
+*   **Base de Datos:** PostgreSQL, una base de datos relacional y SQL robusta ideal para datos estructurados como usuarios, roles y registros de tiempo.
+*   **Autenticación:** JSON Web Tokens (JWT) para la gestión segura de sesiones y autorización de roles.
 
-### Otros
+### Despliegue y Control de Versiones
+*   **Despliegue:** **Render.com** para ambos entornos (Back-end como Web Service y PostgreSQL como base de datos add-on; Front-end como Static Site).
 *   **Control de Versiones:** Git y GitHub.
-*   **Despliegue:** Servicios como Vercel/Netlify para el front-end y Heroku/Railway para el back-end y la base de datos.
 
 ## 5. Cronograma Previsto e Hitos
 El desarrollo se dividirá en 4 sprints o hitos principales con una duración total estimada de 10-12 semanas.
 
 | Hito | Tareas Principales | Duración Estimada |
 | :--- | :--- | :--- |
-| **1. Diseño y Planificación** | Definir requisitos finales, diseñar wireframes y mockups, configurar el entorno de desarrollo y la estructura del proyecto. | 1.5 - 2 semanas |
-| **2. Desarrollo del Núcleo (MVP)** | Configurar back-end (API, base de datos, autenticación). Implementar las funcionalidades básicas del front-end: registro, login, formulario de entrada de datos y dashboard básico. | 4 - 5 semanas |
-| **3. Funcionalidades Avanzadas** | Implementar gráficos y visualización de datos, sistema de recomendaciones, gamificación (logros, metas) y optimizar la experiencia de usuario (UX). | 3 semanas |
-| **4. Pruebas, Revisión y Despliegue** | Realizar pruebas exhaustivas (testing), corregir errores (debugging), optimizar el rendimiento y desplegar la aplicación en un entorno de producción. | 1.5 - 2 semanas |
+| **1. Diseño y Modelado** | Definir requisitos y modelos de datos (User, TimeLog, TimeOffRequest). Diseñar wireframes y esquema de la DB. Configurar entornos. | 1.5 - 2 semanas |
+| **2. Desarrollo del Núcleo (MVP)** | Configurar back-end (API Flask, modelos SQLAlchemy, auth JWT). Implementar funcionalidades básicas del front-end: Login, Registro de jornada y Dashboard de usuario. | 4 - 5 semanas |
+| **3. Gestión de Ausencias y Roles** | Implementar flujo completo de solicitud/aprobación de vacaciones. Desarrollar vistas específicas para Admin y Jefes. Crear paneles de gestión. | 3 semanas |
+| **4. Pulido, Pruebas y Despliegue** | Realizar pruebas de integración y de usuario. Pulir la UI/UX, optimizar el código y realizar el despliegue final en **Render.com**. | 1.5 - 2 semanas |
