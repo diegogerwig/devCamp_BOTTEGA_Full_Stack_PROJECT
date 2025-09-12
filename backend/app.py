@@ -1,9 +1,3 @@
-¡Perfecto! 🎉 Ahora vamos a hacer el deploy paso a paso. Empezaremos por crear el backend y después desplegar todo en Render.
-🚀 Paso 1: Crear el Backend
-1.1 Crear los archivos del backend:
-Desde el directorio raíz del proyecto timetracer/:
-bash# Crear archivo Python principal
-cat > backend/app.py << 'EOF'
 from flask import Flask, jsonify
 from flask_cors import CORS
 import os
