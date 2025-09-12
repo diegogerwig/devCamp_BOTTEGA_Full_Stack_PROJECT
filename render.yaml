@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: timetracer-backend
+    env: python
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && gunicorn app:app
+    plan: free
+    healthCheckPath: /api/health
+
+  - type: web
+    name: timetracer-frontend
+    env: node
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    plan: free
