@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 // URL del backend - ACTUALIZAR después del deploy
-const API_URL = 'https://timetracer-backend.onrender.com';
+const API_URL = 'https://time-tracer-bottega.onrender.com/';
 
 function App() {
   const [status, setStatus] = useState({
