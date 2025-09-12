@@ -1,15 +1,20 @@
 services:
+  # Backend Web Service - Especificar Python explícitamente
   - type: web
     name: timetracer-backend
-    env: python
+    runtime: python
     buildCommand: cd backend && pip install -r requirements.txt
     startCommand: cd backend && gunicorn app:app
-    plan: free
+    plan: starter
     healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
 
+  # Frontend Static Site
   - type: web
     name: timetracer-frontend
-    env: node
+    runtime: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/dist
-    plan: free
+    plan: starter
