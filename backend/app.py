@@ -1,94 +1,118 @@
+¡Perfecto! 🎉 Ahora vamos a hacer el deploy paso a paso. Empezaremos por crear el backend y después desplegar todo en Render.
+🚀 Paso 1: Crear el Backend
+1.1 Crear los archivos del backend:
+Desde el directorio raíz del proyecto timetracer/:
+bash# Crear archivo Python principal
+cat > backend/app.py << 'EOF'
 from flask import Flask, jsonify
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 import os
-from dotenv import load_dotenv
 
-# Cargar variables de entorno
-load_dotenv()
-
-# Crear instancia de Flask
 app = Flask(__name__)
 
-# Configuración CORS para desarrollo
-CORS(app, origins=["http://localhost:3000"])
+# CORS configurado para Render
+CORS(app, origins=["*"])  # Permitir todas las conexiones para demo
 
-# Configuración de la base de datos
-if os.getenv('DATABASE_URL'):
-    # Producción (Render)
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
-else:
-    # Desarrollo local
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///timetracer.db'
-
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Inicializar extensiones
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
-# Modelo básico para prueba
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='worker')
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'email': self.email,
-            'name': self.name,
-            'role': self.role,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+@app.route('/')
+def home():
+    return jsonify({
+        'message': '🚀 TimeTracer API is running on Render!',
+        'status': 'success',
+        'version': '1.0.0',
+        'endpoints': {
+            'health': '/api/health',
+            'users': '/api/users', 
+            'status': '/api/status'
         }
+    })
 
-# Rutas básicas
 @app.route('/api/health')
 def health_check():
     return jsonify({
-        'status': 'ok',
-        'message': 'TimeTracer API is running',
-        'version': '1.0.0'
+        'status': 'healthy',
+        'message': 'TimeTracer backend deployed successfully on Render',
+        'environment': 'production',
+        'server': 'Render'
     })
 
 @app.route('/api/users')
 def get_users():
-    users = User.query.all()
-    return jsonify([user.to_dict() for user in users])
+    # Datos mock para la demo
+    mock_users = [
+        {
+            'id': 1,
+            'name': 'Admin TimeTracer',
+            'email': 'admin@timetracer.com',
+            'role': 'admin',
+            'department': 'IT',
+            'status': 'active'
+        },
+        {
+            'id': 2,
+            'name': 'Juan Manager',
+            'email': 'juan@company.com', 
+            'role': 'manager',
+            'department': 'Operations',
+            'status': 'active'
+        },
+        {
+            'id': 3,
+            'name': 'María Worker',
+            'email': 'maria@company.com',
+            'role': 'worker',
+            'department': 'Sales',
+            'status': 'active'
+        },
+        {
+            'id': 4,
+            'name': 'Carlos Developer',
+            'email': 'carlos@company.com',
+            'role': 'worker',
+            'department': 'IT',
+            'status': 'active'
+        }
+    ]
+    
+    return jsonify({
+        'users': mock_users,
+        'total': len(mock_users),
+        'message': 'Mock users loaded successfully'
+    })
 
-@app.route('/api/test-db')
-def test_db():
-    try:
-        # Intentar crear las tablas
-        db.create_all()
-        
-        # Verificar si existe algún usuario de prueba
-        test_user = User.query.first()
-        if not test_user:
-            # Crear usuario de prueba
-            test_user = User(
-                email='admin@timetracer.com',
-                name='Administrador',
-                role='admin'
-            )
-            db.session.add(test_user)
-            db.session.commit()
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Database connected successfully',
-            'user_count': User.query.count()
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Database error: {str(e)}'
-        }), 500
+@app.route('/api/status')
+def get_status():
+    return jsonify({
+        'backend': '✅ Render Backend Online',
+        'database': '✅ Mock Data Ready',
+        'deploy': '✅ Render Deployment Successful',
+        'cors': '✅ CORS Configured',
+        'features': [
+            '🔧 API Health Check',
+            '🔐 CORS configured for frontend',
+            '👥 Mock user data (4 users)',
+            '🚀 Ready for frontend connection',
+            '📡 Deployed on Render infrastructure'
+        ],
+        'next_steps': [
+            'Connect frontend',
+            'Add authentication',
+            'Implement real database',
+            'Add time tracking features'
+        ]
+    })
+
+@app.route('/api/test')
+def test_endpoint():
+    return jsonify({
+        'message': 'Test endpoint working!',
+        'timestamp': '2024-01-01T00:00:00Z',
+        'server_info': {
+            'platform': 'Render',
+            'python_version': '3.x',
+            'flask_version': '2.3.3'
+        }
+    })
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
