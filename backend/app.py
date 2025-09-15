@@ -7,6 +7,11 @@ app = Flask(__name__)
 # CORS configurado para Render
 CORS(app, origins=["*"])  # Permitir todas las conexiones para demo
 
+@app.route('/favicon.svg')
+def favicon():
+    from flask import redirect
+    return redirect('https://api.iconify.design/material-symbols:schedule-outline.svg?color=%23666666')
+
 @app.route('/')
 def home():
     return jsonify({
