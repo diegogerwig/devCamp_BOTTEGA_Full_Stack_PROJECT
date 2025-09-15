@@ -10,7 +10,7 @@ CORS(app, origins=["*"])  # Permitir todas las conexiones para demo
 @app.route('/favicon.svg')
 @app.route('/favicon.ico')
 def favicon():
-    return redirect('https://api.iconify.design/material-symbols:schedule-outline.svg?color=%23666666')
+    return redirect('https://api.iconify.design/material-symbols:schedule-outline.svg?color=%23333333')
 
 @app.route('/')
 def home():
