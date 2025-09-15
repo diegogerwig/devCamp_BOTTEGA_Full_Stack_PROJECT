@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, redirect
 from flask_cors import CORS
 import os
 
@@ -8,14 +8,14 @@ app = Flask(__name__)
 CORS(app, origins=["*"])  # Permitir todas las conexiones para demo
 
 @app.route('/favicon.svg')
+@app.route('/favicon.ico')
 def favicon():
-    from flask import redirect
     return redirect('https://api.iconify.design/material-symbols:schedule-outline.svg?color=%23666666')
 
 @app.route('/')
 def home():
     return jsonify({
-        'message': '🚀 TimeTracer API is running on Render!',
+        'message': '🚀 TimeTracer API is running on Render GO!!!',
         'status': 'success',
         'version': '1.0.0',
         'endpoints': {
