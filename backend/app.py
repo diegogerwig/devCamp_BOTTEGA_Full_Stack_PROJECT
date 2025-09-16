@@ -13,26 +13,12 @@ app = Flask(__name__)
 # CORS configurado para Render
 CORS(app, origins=["*"])
 
-# Configuración de la base de datos
-DATABASE_URL = os.getenv('DATABASE_URL')
-if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
-    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-
-# Usar SQLite como fallback si no hay PostgreSQL
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL or 'sqlite:///timetracer.db'
+# Configuración para usar SQLite por ahora
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///timetracer.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 
-# Configuración para evitar problemas con PostgreSQL
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-}
-
-db = SQLAlchemy()
-
-# Inicializar la app después de configurar todo
-db.init_app(app)
+db = SQLAlchemy(app)
 
 # =================== MODELOS DE BASE DE DATOS ===================
 
@@ -125,12 +111,11 @@ def favicon():
 
 @app.route('/')
 def home():
-    db_type = 'PostgreSQL' if DATABASE_URL else 'SQLite'
     return jsonify({
-        'message': f'🚀 TimeTracer API v2.0 with {db_type}',
+        'message': '🚀 TimeTracer API v2.0 with SQLite (Ready for PostgreSQL)',
         'status': 'success',
         'version': '2.0.0',
-        'database': db_type,
+        'database': 'SQLite (Persistent)',
         'python_version': f'{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}',
         'endpoints': {
             'health': '/api/health',
@@ -145,10 +130,9 @@ def home():
 def health_check():
     try:
         # Verificar conexión a la base de datos
-        with app.app_context():
-            db.session.execute(db.text('SELECT 1'))
-            db_status = 'healthy'
-            db_type = 'PostgreSQL' if DATABASE_URL else 'SQLite'
+        db.session.execute(db.text('SELECT 1'))
+        db_status = 'healthy'
+        db_type = 'SQLite'
     except Exception as e:
         db_status = f'error: {str(e)}'
         db_type = 'unknown'
@@ -157,7 +141,7 @@ def health_check():
         'status': 'healthy' if db_status == 'healthy' else 'unhealthy',
         'database': db_status,
         'database_type': db_type,
-        'message': 'TimeTracer backend with persistent database',
+        'message': 'TimeTracer backend with persistent SQLite database',
         'environment': os.getenv('FLASK_ENV', 'production'),
         'python_version': f'{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}',
         'server': 'Render'
@@ -333,40 +317,39 @@ def handle_absences():
 def get_status():
     try:
         # Verificar conexión a la base de datos
-        with app.app_context():
-            db.session.execute(db.text('SELECT 1'))
-            
-            # Contar registros
-            user_count = User.query.count()
-            entry_count = TimeEntry.query.count()
-            absence_count = Absence.query.count()
-            
-            db_type = 'PostgreSQL' if DATABASE_URL else 'SQLite'
-            
-            return jsonify({
-                'backend': '✅ Backend Online (Python 3.13 Compatible)',
-                'database': f'✅ {db_type} Connected & Ready',
-                'deploy': '✅ Render Deployment Successful',
-                'cors': '✅ CORS Configured',
-                'statistics': {
-                    'users': user_count,
-                    'time_entries': entry_count,
-                    'absences': absence_count
-                },
-                'features': [
-                    f'🔧 {db_type} Database Integration',
-                    '📊 Real User & Time Entry Management',
-                    '🔐 CORS configured for frontend',
-                    '👥 User Management (CRUD)',
-                    '⏰ Time Entry Tracking',
-                    '🏖️ Absence Management',
-                    f'🐍 Python {os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro} Compatible',
-                    '📡 Deployed on Render infrastructure'
-                ],
-                'database_type': db_type,
-                'environment': os.getenv('FLASK_ENV', 'production'),
-                'python_version': f'{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}'
-            })
+        db.session.execute(db.text('SELECT 1'))
+        
+        # Contar registros
+        user_count = User.query.count()
+        entry_count = TimeEntry.query.count()
+        absence_count = Absence.query.count()
+        
+        return jsonify({
+            'backend': '✅ Backend Online with SQLite',
+            'database': '✅ SQLite Connected & Ready (Persistent)',
+            'deploy': '✅ Render Deployment Successful',
+            'cors': '✅ CORS Configured',
+            'statistics': {
+                'users': user_count,
+                'time_entries': entry_count,
+                'absences': absence_count
+            },
+            'features': [
+                '🗄️ SQLite Database Integration (Persistent)',
+                '📊 Real User & Time Entry Management',
+                '🔐 CORS configured for frontend',
+                '👥 User Management (CRUD)',
+                '⏰ Time Entry Tracking',
+                '🏖️ Absence Management',
+                f'🐍 Python {os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro} Compatible',
+                '📡 Deployed on Render infrastructure',
+                '🔄 Ready for PostgreSQL upgrade'
+            ],
+            'database_type': 'SQLite',
+            'environment': os.getenv('FLASK_ENV', 'production'),
+            'python_version': f'{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}',
+            'note': 'Using SQLite for maximum compatibility. PostgreSQL can be added later.'
+        })
         
     except Exception as e:
         return jsonify({
