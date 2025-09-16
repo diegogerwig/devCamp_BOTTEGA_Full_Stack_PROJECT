@@ -15,7 +15,7 @@ def favicon():
 @app.route('/')
 def home():
     return jsonify({
-        'message': '🚀 TimeTracer API is running on Render GO!!!',
+        'message': '🚀 TimeTracer API is running on Render NEW!!!',
         'status': 'success',
         'version': '1.0.0',
         'endpoints': {

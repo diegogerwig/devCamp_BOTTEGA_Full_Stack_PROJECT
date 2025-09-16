@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-// URL del backend - ACTUALIZAR después del deploy
-const API_URL = 'https://time-tracer-bottega.onrender.com/';
+const API_URL = 'https://time-tracer-bottega-back.onrender.com/';
 
 function App() {
   const [status, setStatus] = useState({
@@ -47,7 +46,7 @@ function App() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-              ⏰ TimeTracer live test
+              ⏰ TimeTracer live NEW
             </h1>
             <p className="text-xl md:text-2xl text-gray-300 mb-6">
               Sistema de Gestión de Jornada y Ausencias
