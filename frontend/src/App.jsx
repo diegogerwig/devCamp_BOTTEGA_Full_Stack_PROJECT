@@ -21,21 +21,33 @@ function App() {
 
   const checkBackend = async () => {
     setDebugInfo(`🔍 Intentando conectar con: ${API_URL}`);
+    setStatus(prev => ({ ...prev, loading: true }));
 
     try {
       console.log('Connecting to:', API_URL);
 
-      // Primero probar la ruta raíz
-      const homeResponse = await axios.get(`${API_URL}/`, { timeout: 10000 });
-      console.log('Home response:', homeResponse.data);
+      // Aumentar timeout para servicios que se duermen en Render
+      const axiosConfig = {
+        timeout: 60000, // 60 segundos para dar tiempo a que "despierte" el servicio
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      };
 
-      const statusResponse = await axios.get(`${API_URL}/api/status`, { timeout: 10000 });
+      setDebugInfo(`⏳ Despertando el servidor... (puede tomar hasta 60 segundos)`);
+
+      // Primero probar la ruta raíz
+      const homeResponse = await axios.get(`${API_URL}/`, axiosConfig);
+      console.log('Home response:', homeResponse.data);
+      setDebugInfo(`✅ Servidor despierto, obteniendo datos...`);
+
+      const statusResponse = await axios.get(`${API_URL}/api/status`, axiosConfig);
       console.log('Status response:', statusResponse.data);
 
-      const usersResponse = await axios.get(`${API_URL}/api/users`, { timeout: 10000 });
+      const usersResponse = await axios.get(`${API_URL}/api/users`, axiosConfig);
       console.log('Users response:', usersResponse.data);
 
-      const entriesResponse = await axios.get(`${API_URL}/api/time-entries`, { timeout: 10000 });
+      const entriesResponse = await axios.get(`${API_URL}/api/time-entries`, axiosConfig);
       console.log('Entries response:', entriesResponse.data);
 
       setStatus({
@@ -44,18 +56,22 @@ function App() {
       });
       setUsers(usersResponse.data.users);
       setTimeEntries(entriesResponse.data.time_entries);
-      setDebugInfo('✅ Conexión exitosa');
+      setDebugInfo('✅ Conexión exitosa - Base de datos SQLite funcionando');
 
     } catch (error) {
       console.error('Connection error:', error);
 
       let errorMessage = 'Unknown error';
       if (error.code === 'ECONNABORTED') {
-        errorMessage = 'Timeout - El servidor tardó demasiado en responder';
+        errorMessage = 'Timeout - El servidor en Render tardó demasiado en despertar. Inténtalo de nuevo.';
       } else if (error.response) {
-        errorMessage = `HTTP ${error.response.status}: ${error.response.statusText}`;
+        if (error.response.status === 500) {
+          errorMessage = `Error interno del servidor (500). El servidor puede estar iniciándose.`;
+        } else {
+          errorMessage = `HTTP ${error.response.status}: ${error.response.statusText}`;
+        }
       } else if (error.request) {
-        errorMessage = 'No se pudo conectar con el servidor';
+        errorMessage = 'No se pudo conectar con el servidor. Puede estar durmiendo en Render.';
       } else {
         errorMessage = error.message;
       }
@@ -73,6 +89,7 @@ function App() {
 
   const createSampleUser = async () => {
     try {
+      setDebugInfo('🔄 Creando usuario...');
       const newUser = {
         name: 'Test User',
         email: `test${Date.now()}@example.com`,
@@ -80,15 +97,18 @@ function App() {
         department: 'Testing'
       };
 
-      await axios.post(`${API_URL}/api/users`, newUser);
+      await axios.post(`${API_URL}/api/users`, newUser, { timeout: 30000 });
+      setDebugInfo('✅ Usuario creado exitosamente');
       checkBackend(); // Refresh data
     } catch (error) {
       console.error('Error creating user:', error);
+      setDebugInfo(`❌ Error creando usuario: ${error.message}`);
     }
   };
 
   const createSampleTimeEntry = async (userId) => {
     try {
+      setDebugInfo('🔄 Creando registro de tiempo...');
       const now = new Date();
       const checkIn = new Date(now.getTime() - 8 * 60 * 60 * 1000); // 8 hours ago
 
@@ -101,10 +121,12 @@ function App() {
         notes: 'Sample work day'
       };
 
-      await axios.post(`${API_URL}/api/time-entries`, newEntry);
+      await axios.post(`${API_URL}/api/time-entries`, newEntry, { timeout: 30000 });
+      setDebugInfo('✅ Registro de tiempo creado exitosamente');
       checkBackend(); // Refresh data
     } catch (error) {
       console.error('Error creating time entry:', error);
+      setDebugInfo(`❌ Error creando registro: ${error.message}`);
     }
   };
 
