@@ -18,11 +18,13 @@ IS_PERSISTENT = False
 if DATABASE_URL:
     print(f"🔍 DATABASE_URL found: {DATABASE_URL[:50]}...")
     try:
-        # Intentar PostgreSQL primero
+        # Intentar PostgreSQL con pg8000 (compatible con Python 3.13)
         from flask_sqlalchemy import SQLAlchemy
         
         if DATABASE_URL.startswith('postgres://'):
-            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+pg8000://', 1)
+        elif DATABASE_URL.startswith('postgresql://'):
+            DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+pg8000://', 1)
         
         app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -31,16 +33,16 @@ if DATABASE_URL:
             'pool_recycle': 300,
         }
         
-        # Solo inicializar si psycopg2 está disponible
+        # Verificar si pg8000 está disponible
         try:
-            import psycopg2
+            import pg8000
             db = SQLAlchemy(app)
             DATABASE_TYPE = 'PostgreSQL (100% Persistente)'
             IS_PERSISTENT = True
-            print("✅ PostgreSQL with psycopg2 configured!")
+            print("✅ PostgreSQL with pg8000 configured!")
         except ImportError as e:
-            print(f"⚠️ psycopg2 not available: {e}")
-            print("📦 Install psycopg2-binary or use SQLite fallback")
+            print(f"⚠️ pg8000 not available: {e}")
+            print("📦 Install pg8000 for PostgreSQL support")
             db = None
             
     except Exception as e:
@@ -143,7 +145,7 @@ def home():
         'python_version': f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}',
         'has_database': db is not None,
         'has_postgresql': DATABASE_URL is not None,
-        'psycopg2_available': 'psycopg2' in sys.modules,
+        'psycopg2_available': 'pg8000' in sys.modules,
         'next_steps': {
             'for_postgresql': 'Install psycopg2-binary or use alternative driver' if DATABASE_URL and not IS_PERSISTENT else None,
             'for_persistence': 'Configure PostgreSQL in Render' if not IS_PERSISTENT else None
@@ -440,7 +442,6 @@ def init_database():
 
 # Inicializar de forma segura
 init_database()
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
