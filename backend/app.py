@@ -112,7 +112,7 @@ def favicon():
 @app.route('/')
 def home():
     return jsonify({
-        'message': '🚀 TimeTracer API v2.0 with SQLite (Ready for PostgreSQL)',
+        'message': '🚀 TimeTracer API v2.0 with SQLite (Ready for PostgreSQL ???)',
         'status': 'success',
         'version': '2.0.0',
         'database': 'SQLite (Persistent)',
