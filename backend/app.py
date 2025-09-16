@@ -443,6 +443,8 @@ def init_database():
 # Inicializar de forma segura
 init_database()
 
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 Starting TimeTracer with {DATABASE_TYPE}")
