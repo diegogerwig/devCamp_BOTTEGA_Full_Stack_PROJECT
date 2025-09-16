@@ -5,28 +5,57 @@ import sys
 from datetime import datetime
 
 app = Flask(__name__)
-
-# CORS simple - permitir todo para empezar
 CORS(app, origins=["*"])
-
-# Configuración básica
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 
-# Intentar importar SQLAlchemy solo si está disponible
-try:
-    from flask_sqlalchemy import SQLAlchemy
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///timetracer.db'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    db = SQLAlchemy(app)
-    HAS_DATABASE = True
-except Exception as e:
-    print(f"Warning: Database not available: {e}")
-    db = None
-    HAS_DATABASE = False
+# Detectar si tenemos PostgreSQL disponible
+DATABASE_URL = os.getenv('DATABASE_URL')
+HAS_POSTGRES = DATABASE_URL is not None
 
-# =================== MODELOS (solo si hay DB) ===================
+# Configurar SQLAlchemy
+if HAS_POSTGRES:
+    try:
+        from flask_sqlalchemy import SQLAlchemy
+        
+        # Convertir postgres:// a postgresql:// si es necesario
+        if DATABASE_URL.startswith('postgres://'):
+            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+        
+        app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True,
+            'pool_recycle': 300,
+            'connect_args': {
+                'sslmode': 'require'
+            }
+        }
+        
+        db = SQLAlchemy(app)
+        DATABASE_TYPE = 'PostgreSQL'
+        print("✅ PostgreSQL configured successfully!")
+        
+    except Exception as e:
+        print(f"❌ PostgreSQL setup failed: {e}")
+        HAS_POSTGRES = False
+        db = None
 
-if HAS_DATABASE:
+if not HAS_POSTGRES:
+    try:
+        from flask_sqlalchemy import SQLAlchemy
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///timetracer.db'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        db = SQLAlchemy(app)
+        DATABASE_TYPE = 'SQLite (Temporal)'
+        print("⚠️ Using SQLite - Data may be lost on redeploy")
+    except Exception as e:
+        print(f"❌ Database setup failed: {e}")
+        db = None
+        DATABASE_TYPE = 'Mock Data'
+
+# =================== MODELOS ===================
+
+if db:
     class User(db.Model):
         __tablename__ = 'users'
         
@@ -73,86 +102,28 @@ if HAS_DATABASE:
                 'created_at': self.created_at.isoformat()
             }
 
-# =================== DATOS MOCK (fallback) ===================
-
+# Datos mock como fallback
 MOCK_USERS = [
-    {
-        'id': 1,
-        'name': 'Admin TimeTracer',
-        'email': 'admin@timetracer.com',
-        'role': 'admin',
-        'department': 'IT',
-        'status': 'active',
-        'created_at': '2024-01-01T00:00:00'
-    },
-    {
-        'id': 2,
-        'name': 'Juan Manager',
-        'email': 'juan@company.com',
-        'role': 'manager',
-        'department': 'Operations',
-        'status': 'active',
-        'created_at': '2024-01-01T00:00:00'
-    },
-    {
-        'id': 3,
-        'name': 'María Worker',
-        'email': 'maria@company.com',
-        'role': 'worker',
-        'department': 'Sales',
-        'status': 'active',
-        'created_at': '2024-01-01T00:00:00'
-    },
-    {
-        'id': 4,
-        'name': 'Carlos Developer',
-        'email': 'carlos@company.com',
-        'role': 'worker',
-        'department': 'IT',
-        'status': 'active',
-        'created_at': '2024-01-01T00:00:00'
-    }
+    {'id': 1, 'name': 'Admin TimeTracer', 'email': 'admin@timetracer.com', 'role': 'admin', 'department': 'IT', 'status': 'active', 'created_at': '2024-01-01T00:00:00'},
+    {'id': 2, 'name': 'Juan Manager', 'email': 'juan@company.com', 'role': 'manager', 'department': 'Operations', 'status': 'active', 'created_at': '2024-01-01T00:00:00'},
+    {'id': 3, 'name': 'María Worker', 'email': 'maria@company.com', 'role': 'worker', 'department': 'Sales', 'status': 'active', 'created_at': '2024-01-01T00:00:00'},
+    {'id': 4, 'name': 'Carlos Developer', 'email': 'carlos@company.com', 'role': 'worker', 'department': 'IT', 'status': 'active', 'created_at': '2024-01-01T00:00:00'}
 ]
 
-MOCK_TIME_ENTRIES = [
-    {
-        'id': 1,
-        'user_id': 1,
-        'date': '2024-01-15',
-        'check_in': '2024-01-15T09:00:00',
-        'check_out': '2024-01-15T17:00:00',
-        'total_hours': 8.0,
-        'notes': 'Regular work day',
-        'created_at': '2024-01-15T09:00:00'
-    },
-    {
-        'id': 2,
-        'user_id': 2,
-        'date': '2024-01-15',
-        'check_in': '2024-01-15T08:30:00',
-        'check_out': '2024-01-15T16:30:00',
-        'total_hours': 8.0,
-        'notes': 'Management tasks',
-        'created_at': '2024-01-15T08:30:00'
-    }
-]
+MOCK_TIME_ENTRIES = []
 
 # =================== RUTAS ===================
-
-@app.route('/favicon.svg')
-@app.route('/favicon.ico')
-def favicon():
-    return redirect('https://api.iconify.design/material-symbols:schedule-outline.svg?color=%23FFEB3B')
 
 @app.route('/')
 def home():
     return jsonify({
-        'message': '🚀 TimeTracer API v2.0 - Simple & Robust',
+        'message': f'🚀 TimeTracer API v2.0 with {DATABASE_TYPE}',
         'status': 'success',
         'version': '2.0.0',
-        'database': 'SQLite (Working)' if HAS_DATABASE else 'Mock Data (Fallback)',
+        'database': DATABASE_TYPE,
+        'persistent': HAS_POSTGRES,
         'python_version': f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}',
-        'has_database': HAS_DATABASE,
+        'warning': None if HAS_POSTGRES else 'SQLite data may be lost on redeploy - Use PostgreSQL for persistence',
         'endpoints': {
             'health': '/api/health',
             'users': '/api/users',
@@ -163,64 +134,62 @@ def home():
 
 @app.route('/api/health')
 def health_check():
-    db_status = 'healthy'
-    db_type = 'Unknown'
+    db_status = 'unknown'
     
-    if HAS_DATABASE:
+    if db:
         try:
             db.session.execute(db.text('SELECT 1'))
             db_status = 'healthy'
-            db_type = 'SQLite'
         except Exception as e:
             db_status = f'error: {str(e)}'
-            db_type = 'SQLite (error)'
     else:
         db_status = 'mock_data'
-        db_type = 'Mock Data'
     
     return jsonify({
         'status': 'healthy',
         'database': db_status,
-        'database_type': db_type,
-        'message': 'TimeTracer backend - Simple & Robust',
+        'database_type': DATABASE_TYPE,
+        'persistent': HAS_POSTGRES,
+        'message': 'TimeTracer backend running',
         'environment': os.getenv('FLASK_ENV', 'production'),
         'python_version': f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}',
-        'has_database': HAS_DATABASE,
-        'server': 'Render'
+        'warning': None if HAS_POSTGRES else 'Data may be lost - Configure PostgreSQL for persistence'
     })
 
 @app.route('/api/users', methods=['GET', 'POST'])
 def handle_users():
     if request.method == 'GET':
-        if HAS_DATABASE:
+        if db:
             try:
                 users = User.query.all()
                 return jsonify({
                     'users': [user.to_dict() for user in users],
                     'total': len(users),
-                    'source': 'database',
-                    'message': 'Users retrieved from SQLite database'
+                    'source': DATABASE_TYPE,
+                    'persistent': HAS_POSTGRES,
+                    'message': f'Users from {DATABASE_TYPE}'
                 })
             except Exception as e:
-                # Fallback to mock data
                 return jsonify({
                     'users': MOCK_USERS,
                     'total': len(MOCK_USERS),
                     'source': 'mock',
-                    'message': f'Database error, using mock data: {str(e)}'
+                    'persistent': False,
+                    'message': f'Database error: {str(e)}'
                 })
         else:
             return jsonify({
                 'users': MOCK_USERS,
                 'total': len(MOCK_USERS),
                 'source': 'mock',
-                'message': 'Using mock data (database not available)'
+                'persistent': False,
+                'message': 'Using mock data'
             })
     
     elif request.method == 'POST':
         data = request.get_json()
         
-        if HAS_DATABASE:
+        if db:
             try:
                 new_user = User(
                     name=data['name'],
@@ -232,18 +201,17 @@ def handle_users():
                 db.session.commit()
                 
                 return jsonify({
-                    'message': 'User created successfully in database',
+                    'message': f'User created in {DATABASE_TYPE}',
                     'user': new_user.to_dict(),
-                    'source': 'database'
+                    'persistent': HAS_POSTGRES
                 }), 201
             except Exception as e:
                 db.session.rollback()
                 return jsonify({
                     'error': f'Database error: {str(e)}',
-                    'message': 'Could not create user in database'
+                    'message': 'Could not create user'
                 }), 400
         else:
-            # Mock creation
             new_user = {
                 'id': len(MOCK_USERS) + 1,
                 'name': data['name'],
@@ -256,42 +224,45 @@ def handle_users():
             MOCK_USERS.append(new_user)
             
             return jsonify({
-                'message': 'User created successfully (mock)',
+                'message': 'User created (mock - will be lost)',
                 'user': new_user,
-                'source': 'mock'
+                'persistent': False
             }), 201
 
 @app.route('/api/time-entries', methods=['GET', 'POST'])
 def handle_time_entries():
     if request.method == 'GET':
-        if HAS_DATABASE:
+        if db:
             try:
                 entries = TimeEntry.query.order_by(TimeEntry.date.desc()).all()
                 return jsonify({
                     'time_entries': [entry.to_dict() for entry in entries],
                     'total': len(entries),
-                    'source': 'database',
-                    'message': 'Time entries retrieved from SQLite database'
+                    'source': DATABASE_TYPE,
+                    'persistent': HAS_POSTGRES,
+                    'message': f'Time entries from {DATABASE_TYPE}'
                 })
             except Exception as e:
                 return jsonify({
                     'time_entries': MOCK_TIME_ENTRIES,
                     'total': len(MOCK_TIME_ENTRIES),
                     'source': 'mock',
-                    'message': f'Database error, using mock data: {str(e)}'
+                    'persistent': False,
+                    'message': f'Database error: {str(e)}'
                 })
         else:
             return jsonify({
                 'time_entries': MOCK_TIME_ENTRIES,
                 'total': len(MOCK_TIME_ENTRIES),
                 'source': 'mock',
-                'message': 'Using mock data (database not available)'
+                'persistent': False,
+                'message': 'Using mock data'
             })
     
     elif request.method == 'POST':
         data = request.get_json()
         
-        if HAS_DATABASE:
+        if db:
             try:
                 new_entry = TimeEntry(
                     user_id=data['user_id'],
@@ -306,18 +277,17 @@ def handle_time_entries():
                 db.session.commit()
                 
                 return jsonify({
-                    'message': 'Time entry created successfully in database',
+                    'message': f'Time entry created in {DATABASE_TYPE}',
                     'time_entry': new_entry.to_dict(),
-                    'source': 'database'
+                    'persistent': HAS_POSTGRES
                 }), 201
             except Exception as e:
                 db.session.rollback()
                 return jsonify({
                     'error': f'Database error: {str(e)}',
-                    'message': 'Could not create time entry in database'
+                    'message': 'Could not create time entry'
                 }), 400
         else:
-            # Mock creation
             new_entry = {
                 'id': len(MOCK_TIME_ENTRIES) + 1,
                 'user_id': data['user_id'],
@@ -331,71 +301,68 @@ def handle_time_entries():
             MOCK_TIME_ENTRIES.append(new_entry)
             
             return jsonify({
-                'message': 'Time entry created successfully (mock)',
+                'message': 'Time entry created (mock - will be lost)',
                 'time_entry': new_entry,
-                'source': 'mock'
+                'persistent': False
             }), 201
 
 @app.route('/api/status')
 def get_status():
-    user_count = 0
-    entry_count = 0
-    db_status = 'Unknown'
+    user_count = entry_count = 0
     
-    if HAS_DATABASE:
+    if db:
         try:
             db.session.execute(db.text('SELECT 1'))
             user_count = User.query.count()
             entry_count = TimeEntry.query.count()
-            db_status = '✅ SQLite Connected & Ready'
+            db_status = f'✅ {DATABASE_TYPE} Connected & Ready'
         except Exception as e:
             user_count = len(MOCK_USERS)
             entry_count = len(MOCK_TIME_ENTRIES)
-            db_status = f'⚠️ Database error, using mock data: {str(e)}'
+            db_status = f'⚠️ Database error: {str(e)}'
     else:
         user_count = len(MOCK_USERS)
         entry_count = len(MOCK_TIME_ENTRIES)
-        db_status = '✅ Mock Data Ready (Database not available)'
+        db_status = '⚠️ Using mock data'
     
     return jsonify({
-        'backend': '✅ Backend Online (Simple & Robust)',
+        'backend': '✅ Backend Online',
         'database': db_status,
         'deploy': '✅ Render Deployment Successful',
         'cors': '✅ CORS Configured',
+        'persistence_warning': None if HAS_POSTGRES else '⚠️ SQLite data may be lost - Configure PostgreSQL!',
         'statistics': {
             'users': user_count,
             'time_entries': entry_count,
             'absences': 0
         },
         'features': [
-            '🗄️ SQLite Database Integration' if HAS_DATABASE else '📝 Mock Data Fallback',
+            f'🗄️ {DATABASE_TYPE} Integration',
             '📊 Real User & Time Entry Management',
             '🔐 CORS configured for frontend',
             '👥 User Management (CRUD)',
             '⏰ Time Entry Tracking',
             f'🐍 Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} Compatible',
             '📡 Deployed on Render infrastructure',
-            '🛡️ Robust error handling with fallbacks'
+            '🛡️ Robust error handling'
         ],
-        'database_type': 'SQLite' if HAS_DATABASE else 'Mock Data',
+        'database_type': DATABASE_TYPE,
+        'persistent': HAS_POSTGRES,
         'environment': os.getenv('FLASK_ENV', 'production'),
-        'python_version': f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}',
-        'has_database': HAS_DATABASE
+        'python_version': f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}'
     })
 
 # =================== INICIALIZACIÓN ===================
 
 def init_database():
-    """Inicializar base de datos solo si está disponible"""
-    if not HAS_DATABASE:
-        print("⚠️ Database not available, using mock data")
+    if not db:
+        print("⚠️ No database available, using mock data")
         return
     
     try:
         with app.app_context():
             db.create_all()
             
-            # Crear datos de ejemplo solo si no hay usuarios
             if User.query.count() == 0:
                 sample_users = [
                     User(name='Admin TimeTracer', email='admin@timetracer.com', role='admin', department='IT'),
@@ -408,28 +375,14 @@ def init_database():
                     db.session.add(user)
                 
                 db.session.commit()
-                print("✅ Sample users created in database!")
+                print(f"✅ Sample users created in {DATABASE_TYPE}!")
                 
-        print("✅ Database initialized successfully!")
+        print(f"✅ {DATABASE_TYPE} initialized successfully!")
     except Exception as e:
         print(f"⚠️ Database initialization failed: {e}")
-        print("Will use mock data as fallback")
 
-# Inicializar la base de datos al cargar el módulo
+# Inicializar
 init_database()
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({'error': 'Endpoint not found'}), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({
-        'error': 'Internal server error',
-        'message': 'Something went wrong, but the server is still running',
-        'fallback': 'Mock data available'
-    }), 500
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
