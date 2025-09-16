@@ -18,11 +18,21 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
+# Usar SQLite como fallback si no hay PostgreSQL
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL or 'sqlite:///timetracer.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 
-db = SQLAlchemy(app)
+# Configuración para evitar problemas con PostgreSQL
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+}
+
+db = SQLAlchemy()
+
+# Inicializar la app después de configurar todo
+db.init_app(app)
 
 # =================== MODELOS DE BASE DE DATOS ===================
 
@@ -115,11 +125,13 @@ def favicon():
 
 @app.route('/')
 def home():
+    db_type = 'PostgreSQL' if DATABASE_URL else 'SQLite'
     return jsonify({
-        'message': '🚀 TimeTracer API v2.0 with PostgreSQL',
+        'message': f'🚀 TimeTracer API v2.0 with {db_type}',
         'status': 'success',
         'version': '2.0.0',
-        'database': 'PostgreSQL' if DATABASE_URL else 'SQLite (Dev)',
+        'database': db_type,
+        'python_version': f'{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}',
         'endpoints': {
             'health': '/api/health',
             'users': '/api/users',
@@ -133,9 +145,10 @@ def home():
 def health_check():
     try:
         # Verificar conexión a la base de datos
-        db.session.execute(db.text('SELECT 1'))
-        db_status = 'healthy'
-        db_type = 'PostgreSQL' if DATABASE_URL else 'SQLite'
+        with app.app_context():
+            db.session.execute(db.text('SELECT 1'))
+            db_status = 'healthy'
+            db_type = 'PostgreSQL' if DATABASE_URL else 'SQLite'
     except Exception as e:
         db_status = f'error: {str(e)}'
         db_type = 'unknown'
@@ -146,6 +159,7 @@ def health_check():
         'database_type': db_type,
         'message': 'TimeTracer backend with persistent database',
         'environment': os.getenv('FLASK_ENV', 'production'),
+        'python_version': f'{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}',
         'server': 'Render'
     })
 
@@ -249,10 +263,10 @@ def handle_time_entries():
             new_entry = TimeEntry(
                 user_id=data['user_id'],
                 date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
-                check_in=datetime.fromisoformat(data['check_in']) if data.get('check_in') else None,
-                check_out=datetime.fromisoformat(data['check_out']) if data.get('check_out') else None,
-                break_start=datetime.fromisoformat(data['break_start']) if data.get('break_start') else None,
-                break_end=datetime.fromisoformat(data['break_end']) if data.get('break_end') else None,
+                check_in=datetime.fromisoformat(data['check_in'].replace('Z', '+00:00')) if data.get('check_in') else None,
+                check_out=datetime.fromisoformat(data['check_out'].replace('Z', '+00:00')) if data.get('check_out') else None,
+                break_start=datetime.fromisoformat(data['break_start'].replace('Z', '+00:00')) if data.get('break_start') else None,
+                break_end=datetime.fromisoformat(data['break_end'].replace('Z', '+00:00')) if data.get('break_end') else None,
                 total_hours=data.get('total_hours'),
                 notes=data.get('notes')
             )
@@ -319,65 +333,74 @@ def handle_absences():
 def get_status():
     try:
         # Verificar conexión a la base de datos
-        db.session.execute(db.text('SELECT 1'))
-        
-        # Contar registros
-        user_count = User.query.count()
-        entry_count = TimeEntry.query.count()
-        absence_count = Absence.query.count()
-        
-        return jsonify({
-            'backend': '✅ PostgreSQL Backend Online',
-            'database': '✅ PostgreSQL Connected & Ready',
-            'deploy': '✅ Render Deployment Successful',
-            'cors': '✅ CORS Configured',
-            'statistics': {
-                'users': user_count,
-                'time_entries': entry_count,
-                'absences': absence_count
-            },
-            'features': [
-                '🔧 PostgreSQL Database Integration',
-                '📊 Real User & Time Entry Management',
-                '🔐 CORS configured for frontend',
-                '👥 User Management (CRUD)',
-                '⏰ Time Entry Tracking',
-                '🏖️ Absence Management',
-                '📡 Deployed on Render infrastructure'
-            ],
-            'database_type': 'PostgreSQL' if DATABASE_URL else 'SQLite',
-            'environment': os.getenv('FLASK_ENV', 'production')
-        })
+        with app.app_context():
+            db.session.execute(db.text('SELECT 1'))
+            
+            # Contar registros
+            user_count = User.query.count()
+            entry_count = TimeEntry.query.count()
+            absence_count = Absence.query.count()
+            
+            db_type = 'PostgreSQL' if DATABASE_URL else 'SQLite'
+            
+            return jsonify({
+                'backend': '✅ Backend Online (Python 3.13 Compatible)',
+                'database': f'✅ {db_type} Connected & Ready',
+                'deploy': '✅ Render Deployment Successful',
+                'cors': '✅ CORS Configured',
+                'statistics': {
+                    'users': user_count,
+                    'time_entries': entry_count,
+                    'absences': absence_count
+                },
+                'features': [
+                    f'🔧 {db_type} Database Integration',
+                    '📊 Real User & Time Entry Management',
+                    '🔐 CORS configured for frontend',
+                    '👥 User Management (CRUD)',
+                    '⏰ Time Entry Tracking',
+                    '🏖️ Absence Management',
+                    f'🐍 Python {os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro} Compatible',
+                    '📡 Deployed on Render infrastructure'
+                ],
+                'database_type': db_type,
+                'environment': os.getenv('FLASK_ENV', 'production'),
+                'python_version': f'{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}'
+            })
         
     except Exception as e:
         return jsonify({
             'backend': '❌ Database Connection Error',
             'database': f'❌ Error: {str(e)}',
             'deploy': '⚠️ Database Configuration Required',
-            'error': 'Database connection failed'
+            'error': 'Database connection failed',
+            'python_version': f'{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}'
         }), 500
 
 # =================== INICIALIZACIÓN ===================
 
 def create_sample_data():
     """Crear datos de ejemplo solo si no existen usuarios"""
-    if User.query.count() == 0:
-        sample_users = [
-            User(name='Admin TimeTracer', email='admin@timetracer.com', role='admin', department='IT'),
-            User(name='Juan Manager', email='juan@company.com', role='manager', department='Operations'),
-            User(name='María Worker', email='maria@company.com', role='worker', department='Sales'),
-            User(name='Carlos Developer', email='carlos@company.com', role='worker', department='IT')
-        ]
-        
-        for user in sample_users:
-            db.session.add(user)
-        
-        db.session.commit()
-        print("✅ Sample users created successfully!")
+    try:
+        if User.query.count() == 0:
+            sample_users = [
+                User(name='Admin TimeTracer', email='admin@timetracer.com', role='admin', department='IT'),
+                User(name='Juan Manager', email='juan@company.com', role='manager', department='Operations'),
+                User(name='María Worker', email='maria@company.com', role='worker', department='Sales'),
+                User(name='Carlos Developer', email='carlos@company.com', role='worker', department='IT')
+            ]
+            
+            for user in sample_users:
+                db.session.add(user)
+            
+            db.session.commit()
+            print("✅ Sample users created successfully!")
+    except Exception as e:
+        print(f"⚠️ Could not create sample data: {e}")
+        db.session.rollback()
 
-@app.before_first_request
-def create_tables():
-    """Crear tablas y datos de ejemplo al inicializar la aplicación"""
+# Crear tablas al importar el módulo
+with app.app_context():
     try:
         db.create_all()
         create_sample_data()
@@ -387,9 +410,5 @@ def create_tables():
 
 if __name__ == '__main__':
     # Para desarrollo local
-    with app.app_context():
-        db.create_all()
-        create_sample_data()
-    
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)

@@ -1,13 +1,4 @@
 services:
-  # PostgreSQL Database
-  - type: pserv
-    name: timetracer-database
-    plan: starter
-    env: postgresql
-    databases:
-      - name: timetracer_db
-        user: timetracer_user
-
   # Backend Web Service
   - type: web
     name: timetracer-backend
@@ -18,15 +9,13 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.11.8
       - key: FLASK_ENV
         value: production
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        fromDatabase:
-          name: timetracer-database
-          property: connectionString
+        value: postgresql://timetracer_user:PASSWORD@HOST:5432/timetracer_db
 
   # Frontend Static Site
   - type: web
