@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+// IMPORTANTE: Verifica que esta URL sea exactamente la de tu backend en Render
 const API_URL = 'https://time-tracer-bottega-back.onrender.com';
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
   const [users, setUsers] = useState([]);
   const [timeEntries, setTimeEntries] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [debugInfo, setDebugInfo] = useState(null);
 
   useEffect(() => {
     document.documentElement.classList.add('dark');
@@ -18,10 +20,23 @@ function App() {
   }, []);
 
   const checkBackend = async () => {
+    setDebugInfo(`🔍 Intentando conectar con: ${API_URL}`);
+
     try {
-      const statusResponse = await axios.get(`${API_URL}/api/status`);
-      const usersResponse = await axios.get(`${API_URL}/api/users`);
-      const entriesResponse = await axios.get(`${API_URL}/api/time-entries`);
+      console.log('Connecting to:', API_URL);
+
+      // Primero probar la ruta raíz
+      const homeResponse = await axios.get(`${API_URL}/`, { timeout: 10000 });
+      console.log('Home response:', homeResponse.data);
+
+      const statusResponse = await axios.get(`${API_URL}/api/status`, { timeout: 10000 });
+      console.log('Status response:', statusResponse.data);
+
+      const usersResponse = await axios.get(`${API_URL}/api/users`, { timeout: 10000 });
+      console.log('Users response:', usersResponse.data);
+
+      const entriesResponse = await axios.get(`${API_URL}/api/time-entries`, { timeout: 10000 });
+      console.log('Entries response:', entriesResponse.data);
 
       setStatus({
         ...statusResponse.data,
@@ -29,15 +44,30 @@ function App() {
       });
       setUsers(usersResponse.data.users);
       setTimeEntries(entriesResponse.data.time_entries);
+      setDebugInfo('✅ Conexión exitosa');
 
     } catch (error) {
+      console.error('Connection error:', error);
+
+      let errorMessage = 'Unknown error';
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Timeout - El servidor tardó demasiado en responder';
+      } else if (error.response) {
+        errorMessage = `HTTP ${error.response.status}: ${error.response.statusText}`;
+      } else if (error.request) {
+        errorMessage = 'No se pudo conectar con el servidor';
+      } else {
+        errorMessage = error.message;
+      }
+
       setStatus({
         backend: '❌ Backend not connected',
         database: '⚠️ Waiting for backend',
         deploy: '🚧 Check backend deployment',
         loading: false,
-        error: 'Backend connection failed. Check if the server is running.'
+        error: `Connection failed: ${errorMessage}`
       });
+      setDebugInfo(`❌ Error: ${errorMessage}`);
     }
   };
 
@@ -116,6 +146,26 @@ function App() {
               ))}
             </div>
           </div>
+
+          {/* Debug Info */}
+          {debugInfo && (
+            <div className="bg-blue-900/50 border border-blue-600 rounded-xl p-4 mb-8">
+              <div className="flex items-center space-x-3 mb-2">
+                <span className="text-blue-400 text-lg">🔍</span>
+                <h3 className="text-lg font-semibold text-blue-300">Debug Info</h3>
+              </div>
+              <p className="text-blue-200 text-sm">{debugInfo}</p>
+              <p className="text-blue-300 text-xs mt-2">
+                Backend URL: <code className="bg-blue-800/70 px-2 py-1 rounded font-mono">{API_URL}</code>
+              </p>
+              <button
+                onClick={checkBackend}
+                className="mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+              >
+                🔄 Reintentar Conexión
+              </button>
+            </div>
+          )}
 
           {/* Error Alert */}
           {status.error && (
