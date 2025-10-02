@@ -1,30 +1,26 @@
 from flask import Flask, jsonify, request, redirect
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
-from flask_bcrypt import Bcrypt
 import os
 import sys
-from datetime import datetime, timedelta
-from functools import wraps
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app, origins=["*"])
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-dev-secret-key')
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 
-jwt = JWTManager(app)
-bcrypt = Bcrypt(app)
-
-# Configuración de base de datos (mantén tu lógica existente)
+# Variables globales para determinar qué base de datos usar
 DATABASE_URL = os.getenv('DATABASE_URL')
 db = None
 DATABASE_TYPE = 'Mock Data'
 IS_PERSISTENT = False
 
+# Intentar configurar base de datos paso a paso
 if DATABASE_URL:
+    print(f"🔍 DATABASE_URL found: {DATABASE_URL[:50]}...")
     try:
+        # Intentar PostgreSQL con pg8000 (compatible con Python 3.13)
         from flask_sqlalchemy import SQLAlchemy
+        
         if DATABASE_URL.startswith('postgres://'):
             DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+pg8000://', 1)
         elif DATABASE_URL.startswith('postgresql://'):
@@ -37,19 +33,24 @@ if DATABASE_URL:
             'pool_recycle': 300,
         }
         
+        # Verificar si pg8000 está disponible
         try:
             import pg8000
             db = SQLAlchemy(app)
             DATABASE_TYPE = 'PostgreSQL (100% Persistente)'
             IS_PERSISTENT = True
             print("✅ PostgreSQL with pg8000 configured!")
-        except ImportError:
+        except ImportError as e:
+            print(f"⚠️ pg8000 not available: {e}")
+            print("📦 Install pg8000 for PostgreSQL support")
             db = None
+            
     except Exception as e:
         print(f"❌ PostgreSQL setup failed: {e}")
         db = None
 
 if db is None:
+    # Fallback a SQLite
     try:
         from flask_sqlalchemy import SQLAlchemy
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///timetracer.db'
@@ -60,42 +61,31 @@ if db is None:
         print("⚠️ Using SQLite fallback")
     except Exception as e:
         print(f"❌ SQLite setup failed: {e}")
-        DATABASE_TYPE = 'Mock Data'
+        DATABASE_TYPE = 'Mock Data (No database available)'
         IS_PERSISTENT = False
 
-# =================== MODELOS ACTUALIZADOS ===================
+# =================== MODELOS (solo si hay DB) ===================
 
 if db:
     class User(db.Model):
         __tablename__ = 'users'
         
         id = db.Column(db.Integer, primary_key=True)
-        username = db.Column(db.String(50), unique=True, nullable=False)
-        password_hash = db.Column(db.String(255), nullable=False)
         name = db.Column(db.String(100), nullable=False)
         email = db.Column(db.String(120), unique=True, nullable=False)
-        role = db.Column(db.String(20), nullable=False, default='user')  # admin, manager, user
+        role = db.Column(db.String(20), nullable=False, default='worker')
         department = db.Column(db.String(50), nullable=False)
         status = db.Column(db.String(20), nullable=False, default='active')
-        manager_name = db.Column(db.String(100), nullable=True)
         created_at = db.Column(db.DateTime, default=datetime.utcnow)
-        
-        def set_password(self, password):
-            self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
-            
-        def check_password(self, password):
-            return bcrypt.check_password_hash(self.password_hash, password)
         
         def to_dict(self):
             return {
                 'id': self.id,
-                'username': self.username,
                 'name': self.name,
                 'email': self.email,
                 'role': self.role,
                 'department': self.department,
                 'status': self.status,
-                'manager_name': self.manager_name,
                 'created_at': self.created_at.isoformat()
             }
 
@@ -123,209 +113,48 @@ if db:
                 'created_at': self.created_at.isoformat()
             }
 
-# =================== DECORADORES DE AUTORIZACIÓN ===================
+# =================== DATOS MOCK (siempre disponibles) ===================
 
-def role_required(*roles):
-    def wrapper(fn):
-        @wraps(fn)
-        @jwt_required()
-        def decorator(*args, **kwargs):
-            claims = get_jwt()
-            user_role = claims.get('role')
-            
-            if user_role not in roles:
-                return jsonify({'error': 'Acceso denegado'}), 403
-            
-            return fn(*args, **kwargs)
-        return decorator
-    return wrapper
+MOCK_USERS = [
+    {'id': 1, 'name': 'Admin TimeTracer', 'email': 'admin@timetracer.com', 'role': 'admin', 'department': 'IT', 'status': 'active', 'created_at': '2024-01-01T00:00:00'},
+    {'id': 2, 'name': 'Juan Manager', 'email': 'juan@company.com', 'role': 'manager', 'department': 'Operations', 'status': 'active', 'created_at': '2024-01-01T00:00:00'},
+    {'id': 3, 'name': 'María Worker', 'email': 'maria@company.com', 'role': 'worker', 'department': 'Sales', 'status': 'active', 'created_at': '2024-01-01T00:00:00'},
+    {'id': 4, 'name': 'Carlos Developer', 'email': 'carlos@company.com', 'role': 'worker', 'department': 'IT', 'status': 'active', 'created_at': '2024-01-01T00:00:00'}
+]
 
-# =================== RUTAS DE AUTENTICACIÓN ===================
+MOCK_TIME_ENTRIES = [
+    {'id': 1, 'user_id': 1, 'date': '2024-01-15', 'check_in': '2024-01-15T09:00:00', 'check_out': '2024-01-15T17:00:00', 'total_hours': 8.0, 'notes': 'Regular work day', 'created_at': '2024-01-15T09:00:00'},
+    {'id': 2, 'user_id': 2, 'date': '2024-01-15', 'check_in': '2024-01-15T08:30:00', 'check_out': '2024-01-15T16:30:00', 'total_hours': 8.0, 'notes': 'Management tasks', 'created_at': '2024-01-15T08:30:00'}
+]
 
-@app.route('/api/auth/login', methods=['POST'])
-def login():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    
-    if not username or not password:
-        return jsonify({'error': 'Usuario y contraseña requeridos'}), 400
-    
-    if db:
-        try:
-            user = User.query.filter_by(username=username).first()
-            
-            if user and user.check_password(password):
-                additional_claims = {
-                    'role': user.role,
-                    'name': user.name,
-                    'email': user.email
-                }
-                
-                access_token = create_access_token(
-                    identity=user.id,
-                    additional_claims=additional_claims
-                )
-                
-                return jsonify({
-                    'token': access_token,
-                    'user': user.to_dict()
-                }), 200
-            else:
-                return jsonify({'error': 'Credenciales inválidas'}), 401
-                
-        except Exception as e:
-            return jsonify({'error': f'Error de base de datos: {str(e)}'}), 500
-    else:
-        return jsonify({'error': 'Base de datos no disponible'}), 503
+# =================== RUTAS ===================
 
-@app.route('/api/auth/me', methods=['GET'])
-@jwt_required()
-def get_current_user():
-    user_id = get_jwt_identity()
-    
-    if db:
-        try:
-            user = User.query.get(user_id)
-            if user:
-                return jsonify(user.to_dict()), 200
-            else:
-                return jsonify({'error': 'Usuario no encontrado'}), 404
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    else:
-        return jsonify({'error': 'Base de datos no disponible'}), 503
-
-# =================== RUTAS PROTEGIDAS ===================
-
-@app.route('/api/users', methods=['GET'])
-@role_required('admin')
-def get_all_users():
-    """Solo admin puede ver todos los usuarios"""
-    if db:
-        try:
-            users = User.query.all()
-            return jsonify({
-                'users': [user.to_dict() for user in users],
-                'total': len(users)
-            }), 200
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    else:
-        return jsonify({'error': 'Base de datos no disponible'}), 503
-
-@app.route('/api/users/<int:user_id>', methods=['GET'])
-@jwt_required()
-def get_user(user_id):
-    """Usuario puede ver su propia info, admin puede ver cualquiera"""
-    current_user_id = get_jwt_identity()
-    claims = get_jwt()
-    user_role = claims.get('role')
-    
-    # Admin puede ver cualquier usuario, otros solo a sí mismos
-    if user_role != 'admin' and current_user_id != user_id:
-        return jsonify({'error': 'Acceso denegado'}), 403
-    
-    if db:
-        try:
-            user = User.query.get(user_id)
-            if user:
-                return jsonify(user.to_dict()), 200
-            else:
-                return jsonify({'error': 'Usuario no encontrado'}), 404
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    else:
-        return jsonify({'error': 'Base de datos no disponible'}), 503
-
-@app.route('/api/time-entries', methods=['GET'])
-@jwt_required()
-def get_time_entries():
-    """Usuarios ven sus registros, managers ven su equipo, admin ve todos"""
-    current_user_id = get_jwt_identity()
-    claims = get_jwt()
-    user_role = claims.get('role')
-    
-    if db:
-        try:
-            if user_role == 'admin':
-                # Admin ve todos los registros
-                entries = TimeEntry.query.order_by(TimeEntry.date.desc()).all()
-            elif user_role == 'manager':
-                # Manager ve registros de su equipo
-                current_user = User.query.get(current_user_id)
-                team_users = User.query.filter_by(manager_name=current_user.name).all()
-                team_ids = [u.id for u in team_users] + [current_user_id]
-                entries = TimeEntry.query.filter(TimeEntry.user_id.in_(team_ids)).order_by(TimeEntry.date.desc()).all()
-            else:
-                # User solo ve sus propios registros
-                entries = TimeEntry.query.filter_by(user_id=current_user_id).order_by(TimeEntry.date.desc()).all()
-            
-            return jsonify({
-                'time_entries': [entry.to_dict() for entry in entries],
-                'total': len(entries)
-            }), 200
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    else:
-        return jsonify({'error': 'Base de datos no disponible'}), 503
-
-@app.route('/api/time-entries', methods=['POST'])
-@jwt_required()
-def create_time_entry():
-    """Crear registro de tiempo"""
-    current_user_id = get_jwt_identity()
-    data = request.get_json()
-    
-    # Usuario solo puede crear registros para sí mismo (a menos que sea admin)
-    claims = get_jwt()
-    user_role = claims.get('role')
-    
-    target_user_id = data.get('user_id', current_user_id)
-    
-    if user_role != 'admin' and target_user_id != current_user_id:
-        return jsonify({'error': 'Solo puedes crear registros para ti mismo'}), 403
-    
-    if db:
-        try:
-            new_entry = TimeEntry(
-                user_id=target_user_id,
-                date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
-                check_in=datetime.fromisoformat(data['check_in'].replace('Z', '+00:00')) if data.get('check_in') else None,
-                check_out=datetime.fromisoformat(data['check_out'].replace('Z', '+00:00')) if data.get('check_out') else None,
-                total_hours=data.get('total_hours'),
-                notes=data.get('notes')
-            )
-            
-            db.session.add(new_entry)
-            db.session.commit()
-            
-            return jsonify({
-                'message': 'Registro creado exitosamente',
-                'time_entry': new_entry.to_dict()
-            }), 201
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'error': str(e)}), 500
-    else:
-        return jsonify({'error': 'Base de datos no disponible'}), 503
-
-# =================== RUTAS EXISTENTES (mantén las que necesites) ===================
+@app.route('/favicon.svg')
+@app.route('/favicon.ico')
+def favicon():
+    return redirect('https://api.iconify.design/material-symbols:schedule-outline.svg?color=%23FFEB3B')
 
 @app.route('/')
 def home():
     return jsonify({
-        'message': f'🚀 TimeTracer API v2.0 with Authentication',
+        'message': f'🚀 TimeTracer API v2.0 with {DATABASE_TYPE}',
         'status': 'success',
         'version': '2.0.0',
         'database': DATABASE_TYPE,
         'persistent': IS_PERSISTENT,
+        'python_version': f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}',
+        'has_database': db is not None,
+        'has_postgresql': DATABASE_URL is not None,
+        'psycopg2_available': 'pg8000' in sys.modules,
+        'next_steps': {
+            'for_postgresql': 'Install psycopg2-binary or use alternative driver' if DATABASE_URL and not IS_PERSISTENT else None,
+            'for_persistence': 'Configure PostgreSQL in Render' if not IS_PERSISTENT else None
+        },
         'endpoints': {
-            'auth_login': '/api/auth/login',
-            'auth_me': '/api/auth/me',
+            'health': '/api/health',
             'users': '/api/users',
             'time_entries': '/api/time-entries',
-            'health': '/api/health'
+            'status': '/api/status'
         }
     })
 
@@ -345,79 +174,278 @@ def health_check():
         'database': db_status,
         'database_type': DATABASE_TYPE,
         'persistent': IS_PERSISTENT,
-        'authentication': 'enabled'
+        'has_database': db is not None,
+        'message': 'TimeTracer backend running',
+        'environment': os.getenv('FLASK_ENV', 'production'),
+        'python_version': f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}',
+        'server': 'Render'
     })
 
-# =================== INICIALIZACIÓN ===================
+@app.route('/api/users', methods=['GET', 'POST'])
+def handle_users():
+    if request.method == 'GET':
+        if db:
+            try:
+                users = User.query.all()
+                return jsonify({
+                    'users': [user.to_dict() for user in users],
+                    'total': len(users),
+                    'source': DATABASE_TYPE,
+                    'persistent': IS_PERSISTENT,
+                    'message': f'Users from {DATABASE_TYPE}'
+                })
+            except Exception as e:
+                # Fallback a mock si la DB falla
+                return jsonify({
+                    'users': MOCK_USERS,
+                    'total': len(MOCK_USERS),
+                    'source': 'mock (database error)',
+                    'persistent': False,
+                    'message': f'Database error, using mock data: {str(e)}'
+                })
+        else:
+            return jsonify({
+                'users': MOCK_USERS,
+                'total': len(MOCK_USERS),
+                'source': 'mock',
+                'persistent': False,
+                'message': 'Using mock data (no database configured)'
+            })
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        
+        if db:
+            try:
+                new_user = User(
+                    name=data['name'],
+                    email=data['email'],
+                    role=data.get('role', 'worker'),
+                    department=data['department']
+                )
+                db.session.add(new_user)
+                db.session.commit()
+                
+                return jsonify({
+                    'message': f'User created in {DATABASE_TYPE}',
+                    'user': new_user.to_dict(),
+                    'persistent': IS_PERSISTENT
+                }), 201
+            except Exception as e:
+                db.session.rollback()
+                # Fallback a mock
+                new_user = {
+                    'id': len(MOCK_USERS) + 1,
+                    'name': data['name'],
+                    'email': data['email'],
+                    'role': data.get('role', 'worker'),
+                    'department': data['department'],
+                    'status': 'active',
+                    'created_at': datetime.utcnow().isoformat()
+                }
+                MOCK_USERS.append(new_user)
+                return jsonify({
+                    'message': f'Database error, created in mock data: {str(e)}',
+                    'user': new_user,
+                    'persistent': False
+                }), 201
+        else:
+            # Solo mock
+            new_user = {
+                'id': len(MOCK_USERS) + 1,
+                'name': data['name'],
+                'email': data['email'],
+                'role': data.get('role', 'worker'),
+                'department': data['department'],
+                'status': 'active',
+                'created_at': datetime.utcnow().isoformat()
+            }
+            MOCK_USERS.append(new_user)
+            
+            return jsonify({
+                'message': 'User created in mock data (no database)',
+                'user': new_user,
+                'persistent': False
+            }), 201
+
+@app.route('/api/time-entries', methods=['GET', 'POST'])
+def handle_time_entries():
+    if request.method == 'GET':
+        if db:
+            try:
+                entries = TimeEntry.query.order_by(TimeEntry.date.desc()).all()
+                return jsonify({
+                    'time_entries': [entry.to_dict() for entry in entries],
+                    'total': len(entries),
+                    'source': DATABASE_TYPE,
+                    'persistent': IS_PERSISTENT,
+                    'message': f'Time entries from {DATABASE_TYPE}'
+                })
+            except Exception as e:
+                return jsonify({
+                    'time_entries': MOCK_TIME_ENTRIES,
+                    'total': len(MOCK_TIME_ENTRIES),
+                    'source': 'mock (database error)',
+                    'persistent': False,
+                    'message': f'Database error, using mock data: {str(e)}'
+                })
+        else:
+            return jsonify({
+                'time_entries': MOCK_TIME_ENTRIES,
+                'total': len(MOCK_TIME_ENTRIES),
+                'source': 'mock',
+                'persistent': False,
+                'message': 'Using mock data (no database configured)'
+            })
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        
+        if db:
+            try:
+                new_entry = TimeEntry(
+                    user_id=data['user_id'],
+                    date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
+                    check_in=datetime.fromisoformat(data['check_in'].replace('Z', '+00:00')) if data.get('check_in') else None,
+                    check_out=datetime.fromisoformat(data['check_out'].replace('Z', '+00:00')) if data.get('check_out') else None,
+                    total_hours=data.get('total_hours'),
+                    notes=data.get('notes')
+                )
+                
+                db.session.add(new_entry)
+                db.session.commit()
+                
+                return jsonify({
+                    'message': f'Time entry created in {DATABASE_TYPE}',
+                    'time_entry': new_entry.to_dict(),
+                    'persistent': IS_PERSISTENT
+                }), 201
+            except Exception as e:
+                db.session.rollback()
+                # Fallback a mock
+                new_entry = {
+                    'id': len(MOCK_TIME_ENTRIES) + 1,
+                    'user_id': data['user_id'],
+                    'date': data['date'],
+                    'check_in': data.get('check_in'),
+                    'check_out': data.get('check_out'),
+                    'total_hours': data.get('total_hours'),
+                    'notes': data.get('notes'),
+                    'created_at': datetime.utcnow().isoformat()
+                }
+                MOCK_TIME_ENTRIES.append(new_entry)
+                return jsonify({
+                    'message': f'Database error, created in mock data: {str(e)}',
+                    'time_entry': new_entry,
+                    'persistent': False
+                }), 201
+        else:
+            # Solo mock
+            new_entry = {
+                'id': len(MOCK_TIME_ENTRIES) + 1,
+                'user_id': data['user_id'],
+                'date': data['date'],
+                'check_in': data.get('check_in'),
+                'check_out': data.get('check_out'),
+                'total_hours': data.get('total_hours'),
+                'notes': data.get('notes'),
+                'created_at': datetime.utcnow().isoformat()
+            }
+            MOCK_TIME_ENTRIES.append(new_entry)
+            
+            return jsonify({
+                'message': 'Time entry created in mock data (no database)',
+                'time_entry': new_entry,
+                'persistent': False
+            }), 201
+
+@app.route('/api/status')
+def get_status():
+    user_count = entry_count = 0
+    
+    if db:
+        try:
+            db.session.execute(db.text('SELECT 1'))
+            user_count = User.query.count()
+            entry_count = TimeEntry.query.count()
+            db_status = f'✅ {DATABASE_TYPE} Connected & Ready'
+        except Exception as e:
+            user_count = len(MOCK_USERS)
+            entry_count = len(MOCK_TIME_ENTRIES)
+            db_status = f'⚠️ Database error, using mock data: {str(e)}'
+    else:
+        user_count = len(MOCK_USERS)
+        entry_count = len(MOCK_TIME_ENTRIES)
+        db_status = '⚠️ Using mock data (no database configured)'
+    
+    return jsonify({
+        'backend': '✅ Backend Online (Ultra-Robust)',
+        'database': db_status,
+        'deploy': '✅ Render Deployment Successful',
+        'cors': '✅ CORS Configured',
+        'statistics': {
+            'users': user_count,
+            'time_entries': entry_count,
+            'absences': 0
+        },
+        'features': [
+            f'🗄️ {DATABASE_TYPE} Integration',
+            '📊 Real User & Time Entry Management',
+            '🔐 CORS configured for frontend',
+            '👥 User Management (CRUD)',
+            '⏰ Time Entry Tracking',
+            f'🐍 Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} Compatible',
+            '📡 Deployed on Render infrastructure',
+            '🛡️ Ultra-robust with multiple fallbacks',
+            '💾 Always functional (database or mock)'
+        ],
+        'database_type': DATABASE_TYPE,
+        'persistent': IS_PERSISTENT,
+        'environment': os.getenv('FLASK_ENV', 'production'),
+        'python_version': f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}',
+        'troubleshooting': {
+            'postgresql_setup': 'Create PostgreSQL in Render + Add DATABASE_URL' if not IS_PERSISTENT else None,
+            'psycopg2_issue': 'psycopg2-binary incompatible with Python 3.13' if DATABASE_URL and not IS_PERSISTENT else None,
+            'current_status': 'Working with mock data - PostgreSQL can be added later'
+        }
+    })
+
+# =================== INICIALIZACIÓN SEGURA ===================
 
 def init_database():
     if not db:
-        print("⚠️ No database available")
+        print("⚠️ No database available, mock data ready")
         return
     
     try:
         with app.app_context():
             db.create_all()
             
-            # Crear usuarios de ejemplo si no existen
             if User.query.count() == 0:
-                admin = User(
-                    username='admin',
-                    name='Admin TimeTracer',
-                    email='admin@timetracer.com',
-                    role='admin',
-                    department='IT',
-                    status='active'
-                )
-                admin.set_password('admin123')
+                sample_users = [
+                    User(name='Admin TimeTracer', email='admin@timetracer.com', role='admin', department='IT'),
+                    User(name='Juan Manager', email='juan@company.com', role='manager', department='Operations'),
+                    User(name='María Worker', email='maria@company.com', role='worker', department='Sales'),
+                    User(name='Carlos Developer', email='carlos@company.com', role='worker', department='IT')
+                ]
                 
-                manager = User(
-                    username='manager1',
-                    name='Carlos Manager',
-                    email='manager@company.com',
-                    role='manager',
-                    department='Operations',
-                    status='active'
-                )
-                manager.set_password('manager123')
+                for user in sample_users:
+                    db.session.add(user)
                 
-                user1 = User(
-                    username='user1',
-                    name='Ana Worker',
-                    email='ana@company.com',
-                    role='user',
-                    department='Sales',
-                    status='active',
-                    manager_name='Carlos Manager'
-                )
-                user1.set_password('user123')
-                
-                user2 = User(
-                    username='user2',
-                    name='Luis Developer',
-                    email='luis@company.com',
-                    role='user',
-                    department='IT',
-                    status='active',
-                    manager_name='Carlos Manager'
-                )
-                user2.set_password('user123')
-                
-                db.session.add_all([admin, manager, user1, user2])
                 db.session.commit()
-                
-                print("✅ Sample users created!")
-                print("   Admin: admin / admin123")
-                print("   Manager: manager1 / manager123")
-                print("   User: user1 / user123")
+                print(f"✅ Sample users created in {DATABASE_TYPE}!")
                 
         print(f"✅ {DATABASE_TYPE} initialized successfully!")
     except Exception as e:
         print(f"⚠️ Database initialization failed: {e}")
+        print("✅ Mock data fallback is ready")
 
+# Inicializar de forma segura
 init_database()
+
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"🚀 Starting TimeTracer with Authentication")
+    print(f"🚀 Starting TimeTracer with {DATABASE_TYPE}")
     app.run(host='0.0.0.0', port=port, debug=False)
