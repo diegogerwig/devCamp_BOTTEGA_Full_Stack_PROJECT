@@ -136,7 +136,7 @@ function App() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-              ⏰ TimeTracer v2.0
+              TimeTracer 
             </h1>
             <p className="text-xl md:text-2xl text-gray-300 mb-6">
               Sistema de Gestión con PostgreSQL Persistente
