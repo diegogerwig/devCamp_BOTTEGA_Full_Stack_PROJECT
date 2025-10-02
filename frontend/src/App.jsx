@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-// IMPORTANTE: Verifica que esta URL sea exactamente la de tu backend en Render
 const API_URL = 'https://time-tracer-bottega-back.onrender.com';
 
 function App() {
