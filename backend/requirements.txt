@@ -4,3 +4,5 @@ Flask-SQLAlchemy==3.0.5
 pg8000==1.30.3
 python-dotenv==1.0.0
 gunicorn==21.2.0
+Flask-JWT-Extended==4.6.0
+Flask-Bcrypt==1.0.1
