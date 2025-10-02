@@ -25,7 +25,6 @@ function App() {
     try {
       console.log('Connecting to:', API_URL);
 
-      // Aumentar timeout para servicios que se duermen en Render
       const axiosConfig = {
         timeout: 60000, // 60 segundos para dar tiempo a que "despierte" el servicio
         headers: {
