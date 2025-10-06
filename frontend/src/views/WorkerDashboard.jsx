@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { timeEntriesAPI } from '../services/api';
+import {
+	formatLocalDateTime,
+	calculateDuration,
+	getCurrentLocalDateTime,
+	calculateTotalHours
+} from '../utils/timeUtils';
 
 function WorkerDashboard() {
 	const { user, logout } = useAuth();
 	const [timeEntries, setTimeEntries] = useState([]);
 	const [loading, setLoading] = useState(true);
-	const [checkInTime, setCheckInTime] = useState(null);
+	const [hasOpenEntry, setHasOpenEntry] = useState(false);
+	const [openEntry, setOpenEntry] = useState(null);
 
 	useEffect(() => {
 		loadData();
@@ -16,7 +23,13 @@ function WorkerDashboard() {
 		setLoading(true);
 		try {
 			const entriesRes = await timeEntriesAPI.getAll();
-			setTimeEntries(entriesRes.data.time_entries);
+			const myEntries = entriesRes.data.time_entries.filter(e => e.user_id === user.id);
+			setTimeEntries(myEntries);
+
+			// Verificar si hay un registro abierto
+			const open = myEntries.find(e => e.check_out === null);
+			setHasOpenEntry(!!open);
+			setOpenEntry(open || null);
 		} catch (error) {
 			console.error('Error cargando datos:', error);
 		}
@@ -24,19 +37,25 @@ function WorkerDashboard() {
 	};
 
 	const handleCheckIn = async () => {
+		if (hasOpenEntry) {
+			alert('Ya tienes un registro abierto');
+			return;
+		}
+
 		try {
-			const now = new Date();
-			setCheckInTime(now);
+			const now = getCurrentLocalDateTime();
 
 			const newEntry = {
 				user_id: user.id,
-				date: now.toISOString().split('T')[0],
-				check_in: now.toISOString(),
-				notes: 'Check-in automático'
+				date: now.split('T')[0],
+				check_in: now,
+				check_out: null,
+				total_hours: null,
+				notes: 'Registro de entrada'
 			};
 
 			await timeEntriesAPI.create(newEntry);
-			loadData();
+			await loadData();
 		} catch (error) {
 			console.error('Error en check-in:', error);
 			alert('Error al registrar entrada');
@@ -44,23 +63,26 @@ function WorkerDashboard() {
 	};
 
 	const handleCheckOut = async () => {
-		try {
-			const now = new Date();
-			const checkIn = checkInTime || new Date(now.getTime() - 8 * 60 * 60 * 1000);
-			const hours = ((now - checkIn) / (1000 * 60 * 60)).toFixed(2);
+		if (!hasOpenEntry || !openEntry) {
+			alert('No tienes un registro abierto');
+			return;
+		}
 
-			const newEntry = {
+		try {
+			const now = getCurrentLocalDateTime();
+			const totalHours = parseFloat(calculateTotalHours(openEntry.check_in, now));
+
+			const updatedEntry = {
 				user_id: user.id,
-				date: now.toISOString().split('T')[0],
-				check_in: checkIn.toISOString(),
-				check_out: now.toISOString(),
-				total_hours: parseFloat(hours),
-				notes: 'Check-out automático'
+				date: openEntry.date,
+				check_in: openEntry.check_in,
+				check_out: now,
+				total_hours: totalHours,
+				notes: openEntry.notes || 'Registro completado'
 			};
 
-			await timeEntriesAPI.create(newEntry);
-			setCheckInTime(null);
-			loadData();
+			await timeEntriesAPI.create(updatedEntry);
+			await loadData();
 		} catch (error) {
 			console.error('Error en check-out:', error);
 			alert('Error al registrar salida');
@@ -79,12 +101,6 @@ function WorkerDashboard() {
 	}
 
 	const totalHours = timeEntries.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
-	const thisWeekEntries = timeEntries.filter(entry => {
-		const entryDate = new Date(entry.date);
-		const now = new Date();
-		const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-		return entryDate >= weekAgo;
-	});
 
 	return (
 		<div className="min-h-screen bg-gray-900 text-white">
@@ -115,9 +131,9 @@ function WorkerDashboard() {
 						<div className="flex flex-col md:flex-row gap-4 justify-center items-center">
 							<button
 								onClick={handleCheckIn}
-								disabled={checkInTime !== null}
-								className={`px-8 py-4 rounded-xl font-bold text-lg transition-all transform ${checkInTime
-										? 'bg-gray-600 cursor-not-allowed'
+								disabled={hasOpenEntry}
+								className={`px-8 py-4 rounded-xl font-bold text-lg transition-all transform ${hasOpenEntry
+										? 'bg-gray-600 cursor-not-allowed opacity-50'
 										: 'bg-green-600 hover:bg-green-700 hover:scale-105 shadow-lg'
 									}`}
 							>
@@ -126,17 +142,27 @@ function WorkerDashboard() {
 
 							<button
 								onClick={handleCheckOut}
-								className="px-8 py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-lg"
+								disabled={!hasOpenEntry}
+								className={`px-8 py-4 rounded-xl font-bold text-lg transition-all transform ${!hasOpenEntry
+										? 'bg-gray-600 cursor-not-allowed opacity-50'
+										: 'bg-red-600 hover:bg-red-700 hover:scale-105 shadow-lg'
+									}`}
 							>
 								🚪 Marcar Salida
 							</button>
 						</div>
 
-						{checkInTime && (
+						{hasOpenEntry && openEntry && (
 							<div className="mt-6 text-center">
 								<div className="bg-green-900/50 border border-green-600 rounded-lg p-4 inline-block">
-									<p className="text-green-300">
-										✅ Entrada registrada: {checkInTime.toLocaleTimeString()}
+									<p className="text-green-300 mb-2">
+										✅ Tienes una jornada activa
+									</p>
+									<p className="text-green-200 text-sm">
+										Entrada: {formatLocalDateTime(openEntry.check_in)}
+									</p>
+									<p className="text-green-200 text-sm font-bold mt-2">
+										Tiempo transcurrido: {calculateDuration(openEntry.check_in, null)}
 									</p>
 								</div>
 							</div>
@@ -156,9 +182,9 @@ function WorkerDashboard() {
 						<div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
 							<div className="text-center">
 								<div className="text-4xl font-bold text-blue-400 mb-2">
-									{thisWeekEntries.length}
+									{timeEntries.filter(e => e.check_out !== null).length}
 								</div>
-								<div className="text-gray-300">Días Esta Semana</div>
+								<div className="text-gray-300">Días Completados</div>
 							</div>
 						</div>
 						<div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
@@ -188,39 +214,35 @@ function WorkerDashboard() {
 								</p>
 							</div>
 						) : (
-							<div className="space-y-4">
-								{timeEntries.slice(0, 10).map((entry) => (
-									<div
-										key={entry.id}
-										className="bg-gray-700/50 border border-gray-600 rounded-lg p-6 hover:bg-gray-700 transition-colors"
-									>
-										<div className="flex justify-between items-start">
-											<div>
-												<h3 className="font-semibold text-white text-lg mb-2">
-													📅 {entry.date}
-												</h3>
-												<div className="text-gray-400 text-sm space-y-1">
-													{entry.check_in && (
-														<div>✅ Entrada: {new Date(entry.check_in).toLocaleTimeString()}</div>
+							<div className="overflow-x-auto">
+								<table className="w-full">
+									<thead>
+										<tr className="border-b-2 border-gray-700">
+											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Fecha</th>
+											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Entrada</th>
+											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Salida</th>
+											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Duración</th>
+										</tr>
+									</thead>
+									<tbody>
+										{timeEntries.map((entry) => (
+											<tr key={entry.id} className="border-b border-gray-700 hover:bg-gray-700/30">
+												<td className="py-3 px-4">{entry.date}</td>
+												<td className="py-3 px-4">{formatLocalDateTime(entry.check_in)}</td>
+												<td className="py-3 px-4">
+													{entry.check_out ? (
+														formatLocalDateTime(entry.check_out)
+													) : (
+														<span className="text-green-400 font-semibold">En curso</span>
 													)}
-													{entry.check_out && (
-														<div>🚪 Salida: {new Date(entry.check_out).toLocaleTimeString()}</div>
-													)}
-												</div>
-											</div>
-											<div className="text-right">
-												<div className="text-3xl font-bold text-green-400">
-													{entry.total_hours ? `${entry.total_hours}h` : '⏳'}
-												</div>
-											</div>
-										</div>
-										{entry.notes && (
-											<div className="mt-4 p-3 bg-gray-800/50 rounded-lg">
-												<p className="text-gray-300 text-sm">📝 {entry.notes}</p>
-											</div>
-										)}
-									</div>
-								))}
+												</td>
+												<td className="py-3 px-4 font-bold text-green-400">
+													{calculateDuration(entry.check_in, entry.check_out)}
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
 							</div>
 						)}
 					</div>
