@@ -66,13 +66,16 @@ export const authAPI = {
 // Funciones de usuarios
 export const usersAPI = {
   getAll: () => api.get('/api/users'),
-  create: (userData) => api.post('/api/users', userData)
+  create: (userData) => api.post('/api/users', userData),
+  delete: (userId) => api.delete(`/api/users/${userId}`)
 };
 
 // Funciones de time entries
 export const timeEntriesAPI = {
   getAll: () => api.get('/api/time-entries'),
-  create: (entryData) => api.post('/api/time-entries', entryData)
+  create: (entryData) => api.post('/api/time-entries', entryData),
+  update: (entryId, entryData) => api.put(`/api/time-entries/${entryId}`, entryData),
+  delete: (entryId) => api.delete(`/api/time-entries/${entryId}`)
 };
 
 // Función de status

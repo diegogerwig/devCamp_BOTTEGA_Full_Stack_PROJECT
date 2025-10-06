@@ -113,23 +113,21 @@ function ManagerDashboard() {
 
 	const saveEdit = async () => {
 		try {
+			const checkInISO = dateTimeInputToISO(editCheckIn);
 			const checkOutISO = editCheckOut ? dateTimeInputToISO(editCheckOut) : null;
-			const totalHours = checkOutISO ? parseFloat(calculateTotalHours(dateTimeInputToISO(editCheckIn), checkOutISO)) : null;
+			const totalHours = checkOutISO ? parseFloat(calculateTotalHours(checkInISO, checkOutISO)) : null;
 
-			const entry = timeEntries.find(e => e.id === editingEntry);
-			await timeEntriesAPI.create({
-				user_id: entry.user_id,
-				date: entry.date,
-				check_in: dateTimeInputToISO(editCheckIn),
+			await timeEntriesAPI.update(editingEntry, {
+				check_in: checkInISO,
 				check_out: checkOutISO,
-				total_hours: totalHours,
-				notes: entry.notes
+				total_hours: totalHours
 			});
 
 			setEditingEntry(null);
 			await loadData();
 		} catch (error) {
 			console.error('Error guardando cambios:', error);
+			alert(error.response?.data?.message || 'Error al guardar cambios');
 		}
 	};
 
@@ -146,8 +144,13 @@ function ManagerDashboard() {
 		}
 
 		if (confirm('¿Estás seguro de eliminar este registro?')) {
-			// Aquí necesitarías un endpoint DELETE en el backend
-			alert('Función de eliminar pendiente de implementar en el backend');
+			try {
+				await timeEntriesAPI.delete(entryId);
+				await loadData();
+			} catch (error) {
+				console.error('Error eliminando registro:', error);
+				alert(error.response?.data?.message || 'Error al eliminar registro');
+			}
 		}
 	};
 
@@ -174,7 +177,7 @@ function ManagerDashboard() {
 			alert('Worker creado exitosamente');
 		} catch (error) {
 			console.error('Error creando worker:', error);
-			alert('Error al crear worker');
+			alert(error.response?.data?.message || 'Error al crear worker');
 		}
 	};
 

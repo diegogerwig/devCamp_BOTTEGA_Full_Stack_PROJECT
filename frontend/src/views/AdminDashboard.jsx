@@ -5,7 +5,8 @@ import {
 	formatLocalDateTime,
 	calculateDuration,
 	formatForDateTimeInput,
-	dateTimeInputToISO
+	dateTimeInputToISO,
+	calculateTotalHours
 } from '../utils/timeUtils';
 
 function AdminDashboard() {
@@ -59,21 +60,21 @@ function AdminDashboard() {
 
 	const saveEdit = async () => {
 		try {
+			const checkInISO = dateTimeInputToISO(editCheckIn);
 			const checkOutISO = editCheckOut ? dateTimeInputToISO(editCheckOut) : null;
-			const entry = timeEntries.find(e => e.id === editingEntry);
+			const totalHours = checkOutISO ? parseFloat(calculateTotalHours(checkInISO, checkOutISO)) : null;
 
-			await timeEntriesAPI.create({
-				user_id: entry.user_id,
-				date: entry.date,
-				check_in: dateTimeInputToISO(editCheckIn),
+			await timeEntriesAPI.update(editingEntry, {
+				check_in: checkInISO,
 				check_out: checkOutISO,
-				notes: entry.notes
+				total_hours: totalHours
 			});
 
 			setEditingEntry(null);
 			await loadData();
 		} catch (error) {
 			console.error('Error guardando cambios:', error);
+			alert(error.response?.data?.message || 'Error al guardar cambios');
 		}
 	};
 
@@ -85,7 +86,13 @@ function AdminDashboard() {
 
 	const handleDeleteEntry = async (entryId) => {
 		if (confirm('¿Estás seguro de eliminar este registro?')) {
-			alert('Función de eliminar pendiente de implementar en el backend');
+			try {
+				await timeEntriesAPI.delete(entryId);
+				await loadData();
+			} catch (error) {
+				console.error('Error eliminando registro:', error);
+				alert(error.response?.data?.message || 'Error al eliminar registro');
+			}
 		}
 	};
 
@@ -114,13 +121,20 @@ function AdminDashboard() {
 			alert('Usuario creado exitosamente');
 		} catch (error) {
 			console.error('Error creando usuario:', error);
-			alert('Error al crear usuario');
+			alert(error.response?.data?.message || 'Error al crear usuario');
 		}
 	};
 
 	const handleDeleteUser = async (userId) => {
 		if (confirm('¿Estás seguro de eliminar este usuario? Se eliminarán todos sus registros.')) {
-			alert('Función de eliminar pendiente de implementar en el backend');
+			try {
+				await usersAPI.delete(userId);
+				await loadData();
+				alert('Usuario eliminado exitosamente');
+			} catch (error) {
+				console.error('Error eliminando usuario:', error);
+				alert(error.response?.data?.message || 'Error al eliminar usuario');
+			}
 		}
 	};
 
