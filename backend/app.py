@@ -16,13 +16,12 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 jwt = JWTManager(app)
 bcrypt = Bcrypt(app)
 
-# Variables globales para determinar qué base de datos usar
+# Configuración de base de datos
 DATABASE_URL = os.getenv('DATABASE_URL')
 db = None
 DATABASE_TYPE = 'Mock Data'
 IS_PERSISTENT = False
 
-# Intentar configurar base de datos paso a paso
 if DATABASE_URL:
     print(f"🔍 DATABASE_URL found: {DATABASE_URL[:50]}...")
     try:
@@ -69,7 +68,6 @@ if db is None:
         IS_PERSISTENT = False
 
 # =================== MODELOS ===================
-
 if db:
     class User(db.Model):
         __tablename__ = 'users'
@@ -77,7 +75,8 @@ if db:
         id = db.Column(db.Integer, primary_key=True)
         name = db.Column(db.String(100), nullable=False)
         email = db.Column(db.String(120), unique=True, nullable=False)
-        password = db.Column(db.String(255), nullable=False)
+        # Usar el nombre correcto de la columna en PostgreSQL
+        users_password = db.Column('users_password', db.String(255), nullable=False)
         role = db.Column(db.String(20), nullable=False, default='worker')
         department = db.Column(db.String(50), nullable=False)
         status = db.Column(db.String(20), nullable=False, default='active')
@@ -105,7 +104,6 @@ if db:
         total_hours = db.Column(db.Float, nullable=True)
         notes = db.Column(db.Text, nullable=True)
         created_at = db.Column(db.DateTime, default=datetime.utcnow)
-        updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
         
         def to_dict(self):
             return {
@@ -120,20 +118,15 @@ if db:
             }
 
 # =================== DATOS MOCK ===================
-
 MOCK_USERS = [
     {'id': 1, 'name': 'Admin TimeTracer', 'email': 'admin@timetracer.com', 'password': bcrypt.generate_password_hash('admin123').decode('utf-8'), 'role': 'admin', 'department': 'IT', 'status': 'active', 'created_at': '2024-01-01T00:00:00'},
     {'id': 2, 'name': 'Juan Manager', 'email': 'juan@company.com', 'password': bcrypt.generate_password_hash('manager123').decode('utf-8'), 'role': 'manager', 'department': 'Operations', 'status': 'active', 'created_at': '2024-01-01T00:00:00'},
     {'id': 3, 'name': 'María Worker', 'email': 'maria@company.com', 'password': bcrypt.generate_password_hash('worker123').decode('utf-8'), 'role': 'worker', 'department': 'Operations', 'status': 'active', 'created_at': '2024-01-01T00:00:00'},
 ]
 
-MOCK_TIME_ENTRIES = [
-    {'id': 1, 'user_id': 1, 'date': '2024-01-15', 'check_in': '2024-01-15T09:00:00', 'check_out': '2024-01-15T17:00:00', 'total_hours': 8.0, 'notes': 'Regular work day', 'created_at': '2024-01-15T09:00:00'},
-    {'id': 2, 'user_id': 2, 'date': '2024-01-15', 'check_in': '2024-01-15T08:30:00', 'check_out': '2024-01-15T16:30:00', 'total_hours': 8.0, 'notes': 'Management tasks', 'created_at': '2024-01-15T08:30:00'}
-]
+MOCK_TIME_ENTRIES = []
 
 # =================== RUTAS PÚBLICAS ===================
-
 @app.route('/favicon.svg')
 @app.route('/favicon.ico')
 def favicon():
@@ -142,23 +135,11 @@ def favicon():
 @app.route('/')
 def home():
     return jsonify({
-        'message': f'🚀 TimeTracer API v2.0 with Authentication & {DATABASE_TYPE}',
+        'message': f'🚀 TimeTracer API v2.0 with {DATABASE_TYPE}',
         'status': 'success',
         'version': '2.0.0',
         'database': DATABASE_TYPE,
-        'persistent': IS_PERSISTENT,
-        'authentication': 'JWT Enabled',
-        'endpoints': {
-            'auth': {
-                'login': '/api/auth/login',
-                'register': '/api/auth/register',
-                'me': '/api/auth/me'
-            },
-            'health': '/api/health',
-            'users': '/api/users',
-            'time_entries': '/api/time-entries',
-            'status': '/api/status'
-        }
+        'persistent': IS_PERSISTENT
     })
 
 @app.route('/api/health')
@@ -176,13 +157,10 @@ def health_check():
         'status': 'healthy',
         'database': db_status,
         'database_type': DATABASE_TYPE,
-        'persistent': IS_PERSISTENT,
-        'authentication': 'enabled',
-        'message': 'TimeTracer backend running with authentication'
+        'persistent': IS_PERSISTENT
     })
 
 # =================== AUTENTICACIÓN ===================
-
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -196,7 +174,7 @@ def login():
         try:
             user = User.query.filter_by(email=email).first()
             
-            if user and bcrypt.check_password_hash(user.password, password):
+            if user and bcrypt.check_password_hash(user.users_password, password):
                 access_token = create_access_token(
                     identity=str(user.id),
                     additional_claims={
@@ -216,9 +194,9 @@ def login():
                 return jsonify({'message': 'Credenciales inválidas'}), 401
                 
         except Exception as e:
-            print(f"Database error, using mock: {e}")
+            print(f"Database error in login: {e}")
     
-    # Mock data
+    # Mock fallback
     user = next((u for u in MOCK_USERS if u['email'] == email), None)
     
     if user and bcrypt.check_password_hash(user['password'], password):
@@ -236,78 +214,12 @@ def login():
         )
         
         return jsonify({
-            'message': 'Login exitoso (mock data)',
+            'message': 'Login exitoso (mock)',
             'access_token': access_token,
             'user': user_copy
         }), 200
     
     return jsonify({'message': 'Credenciales inválidas'}), 401
-
-@app.route('/api/auth/register', methods=['POST'])
-@admin_required
-def register():
-    data = request.get_json()
-    
-    required_fields = ['name', 'email', 'password', 'role', 'department']
-    if not all(field in data for field in required_fields):
-        return jsonify({'message': 'Todos los campos son requeridos'}), 400
-    
-    # Validar roles permitidos
-    if data['role'] not in ['worker', 'manager', 'admin']:
-        return jsonify({'message': 'Rol no válido'}), 400
-    
-    if db:
-        try:
-            existing_user = User.query.filter_by(email=data['email']).first()
-            if existing_user:
-                return jsonify({'message': 'El email ya está registrado'}), 400
-            
-            hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-            
-            new_user = User(
-                name=data['name'],
-                email=data['email'],
-                password=hashed_password,
-                role=data['role'],
-                department=data['department']
-            )
-            
-            db.session.add(new_user)
-            db.session.commit()
-            
-            return jsonify({
-                'message': 'Usuario registrado exitosamente',
-                'user': new_user.to_dict()
-            }), 201
-            
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'message': f'Error al registrar usuario: {str(e)}'}), 500
-    
-    # Mock data
-    if any(u['email'] == data['email'] for u in MOCK_USERS):
-        return jsonify({'message': 'El email ya está registrado'}), 400
-    
-    hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-    new_user = {
-        'id': len(MOCK_USERS) + 1,
-        'name': data['name'],
-        'email': data['email'],
-        'password': hashed_password,
-        'role': data['role'],
-        'department': data['department'],
-        'status': 'active',
-        'created_at': datetime.utcnow().isoformat()
-    }
-    MOCK_USERS.append(new_user)
-    
-    user_copy = new_user.copy()
-    user_copy.pop('password')
-    
-    return jsonify({
-        'message': 'Usuario registrado exitosamente (mock data)',
-        'user': user_copy
-    }), 201
 
 @app.route('/api/auth/me', methods=['GET'])
 @token_required
@@ -323,7 +235,7 @@ def get_current_user():
         except Exception as e:
             print(f"Database error: {e}")
     
-    # Mock data
+    # Mock fallback
     user_data = {
         'id': int(user_id),
         'email': claims.get('email'),
@@ -335,8 +247,7 @@ def get_current_user():
     
     return jsonify({'user': user_data}), 200
 
-# =================== RUTAS PROTEGIDAS ===================
-
+# =================== GESTIÓN DE USUARIOS ===================
 @app.route('/api/users', methods=['GET'])
 @token_required
 def get_users():
@@ -362,7 +273,7 @@ def get_users():
         except Exception as e:
             print(f"Database error: {e}")
     
-    # Mock data
+    # Mock fallback
     if user_role == 'admin':
         filtered_users = MOCK_USERS
     elif user_role == 'manager':
@@ -386,34 +297,30 @@ def create_user():
     user_dept = claims.get('department')
     data = request.get_json()
     
-    # Validar campos requeridos
+    # Validar campos
     required_fields = ['name', 'email', 'password', 'department']
     if not all(field in data for field in required_fields):
         return jsonify({'message': 'Todos los campos son requeridos'}), 400
     
-    # Obtener el rol del nuevo usuario (default: worker)
     new_user_role = data.get('role', 'worker')
     
-    # Validar permisos según el rol del usuario actual
+    # Validar permisos
     if user_role == 'admin':
-        # Admin puede crear cualquier rol
         if new_user_role not in ['worker', 'manager', 'admin']:
             return jsonify({'message': 'Rol no válido'}), 400
     elif user_role == 'manager':
-        # Manager solo puede crear workers en su departamento
         if new_user_role != 'worker':
             return jsonify({'message': 'Los managers solo pueden crear workers'}), 403
         if data['department'] != user_dept:
             return jsonify({'message': 'Solo puedes crear workers en tu departamento'}), 403
     else:
-        # Workers no pueden crear usuarios
         return jsonify({'message': 'No tienes permisos para crear usuarios'}), 403
     
     if db:
         try:
-            # Verificar si el email ya existe
-            existing_user = User.query.filter_by(email=data['email']).first()
-            if existing_user:
+            # Verificar si existe
+            existing = User.query.filter_by(email=data['email']).first()
+            if existing:
                 return jsonify({'message': 'El email ya está registrado'}), 400
             
             hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
@@ -421,10 +328,11 @@ def create_user():
             new_user = User(
                 name=data['name'],
                 email=data['email'],
-                password=hashed_password,
+                users_password=hashed_password,
                 role=new_user_role,
                 department=data['department']
             )
+            
             db.session.add(new_user)
             db.session.commit()
             
@@ -432,12 +340,15 @@ def create_user():
                 'message': 'Usuario creado exitosamente',
                 'user': new_user.to_dict()
             }), 201
+            
         except Exception as e:
             db.session.rollback()
             print(f"Error creating user: {e}")
-            return jsonify({'message': f'Error al crear usuario: {str(e)}'}), 500
+            import traceback
+            traceback.print_exc()
+            return jsonify({'message': f'Error: {str(e)}'}), 500
     
-    # Mock data
+    # Mock fallback
     if any(u['email'] == data['email'] for u in MOCK_USERS):
         return jsonify({'message': 'El email ya está registrado'}), 400
     
@@ -462,6 +373,42 @@ def create_user():
         'user': user_copy
     }), 201
 
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@admin_required
+def delete_user(user_id):
+    current_user_id = int(get_jwt_identity())
+    
+    if user_id == current_user_id:
+        return jsonify({'message': 'No puedes eliminar tu propio usuario'}), 403
+    
+    if db:
+        try:
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({'message': 'Usuario no encontrado'}), 404
+            
+            TimeEntry.query.filter_by(user_id=user_id).delete()
+            db.session.delete(user)
+            db.session.commit()
+            
+            return jsonify({'message': 'Usuario eliminado exitosamente'}), 200
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'message': f'Error: {str(e)}'}), 500
+    
+    # Mock fallback
+    user = next((u for u in MOCK_USERS if u['id'] == user_id), None)
+    if not user:
+        return jsonify({'message': 'Usuario no encontrado'}), 404
+    
+    global MOCK_TIME_ENTRIES
+    MOCK_TIME_ENTRIES = [e for e in MOCK_TIME_ENTRIES if e['user_id'] != user_id]
+    MOCK_USERS.remove(user)
+    
+    return jsonify({'message': 'Usuario eliminado (mock)'}), 200
+
+# =================== REGISTROS DE TIEMPO ===================
 @app.route('/api/time-entries', methods=['GET'])
 @token_required
 def get_time_entries():
@@ -489,7 +436,7 @@ def get_time_entries():
         except Exception as e:
             print(f"Database error: {e}")
     
-    # Mock data
+    # Mock fallback
     if user_role == 'admin':
         filtered_entries = MOCK_TIME_ENTRIES
     elif user_role == 'manager':
@@ -512,58 +459,43 @@ def create_time_entry():
     user_id = int(get_jwt_identity())
     data = request.get_json()
     
-    # Validar campos requeridos
     if 'date' not in data or 'check_in' not in data:
         return jsonify({'message': 'Fecha y hora de entrada son requeridos'}), 400
     
     target_user_id = data.get('user_id', user_id)
     
-    # Workers solo pueden crear sus propias entradas
+    # Validar permisos
     if user_role == 'worker' and target_user_id != user_id:
         return jsonify({'message': 'No puedes crear registros para otros usuarios'}), 403
     
-    # Managers pueden crear para workers de su departamento
-    if user_role == 'manager' and target_user_id != user_id:
-        target_user = None
-        if db:
-            target_user = User.query.get(target_user_id)
-        else:
-            target_user = next((u for u in MOCK_USERS if u['id'] == target_user_id), None)
-        
-        if not target_user or target_user.get('department' if not db else target_user.department) != claims.get('department'):
-            return jsonify({'message': 'No puedes crear registros para usuarios de otros departamentos'}), 403
-    
     if db:
         try:
-            # Parsear fechas
             entry_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
-            check_in = datetime.fromisoformat(data['check_in'].replace('Z', '+00:00')) if data.get('check_in') else None
+            check_in = datetime.fromisoformat(data['check_in'].replace('Z', '+00:00'))
             check_out = None
             if data.get('check_out'):
                 check_out = datetime.fromisoformat(data['check_out'].replace('Z', '+00:00'))
             
-            # Buscar si ya existe un registro para ese usuario y fecha
-            existing_entry = TimeEntry.query.filter_by(
+            # Buscar registro existente
+            existing = TimeEntry.query.filter_by(
                 user_id=target_user_id,
                 date=entry_date
             ).first()
             
-            if existing_entry:
-                # Actualizar el registro existente
-                existing_entry.check_in = check_in
-                existing_entry.check_out = check_out
-                existing_entry.total_hours = data.get('total_hours')
-                existing_entry.notes = data.get('notes')
-                existing_entry.updated_at = datetime.utcnow()
-                
+            if existing:
+                # Actualizar
+                existing.check_in = check_in
+                existing.check_out = check_out
+                existing.total_hours = data.get('total_hours')
+                existing.notes = data.get('notes')
                 db.session.commit()
                 
                 return jsonify({
                     'message': 'Registro actualizado',
-                    'time_entry': existing_entry.to_dict()
+                    'time_entry': existing.to_dict()
                 }), 200
             else:
-                # Crear nuevo registro
+                # Crear nuevo
                 new_entry = TimeEntry(
                     user_id=target_user_id,
                     date=entry_date,
@@ -581,61 +513,47 @@ def create_time_entry():
                     'time_entry': new_entry.to_dict()
                 }), 201
                 
-        except ValueError as e:
-            return jsonify({'message': f'Formato de fecha inválido: {str(e)}'}), 400
         except Exception as e:
             db.session.rollback()
-            print(f"Error creating time entry: {e}")
+            print(f"Error in time entry: {e}")
             import traceback
             traceback.print_exc()
             return jsonify({'message': f'Error: {str(e)}'}), 500
     
-    # Mock data
-    try:
-        # Buscar si ya existe un registro para ese usuario y fecha
-        existing_entry_index = None
-        for i, entry in enumerate(MOCK_TIME_ENTRIES):
-            if entry['user_id'] == target_user_id and entry['date'] == data['date']:
-                existing_entry_index = i
-                break
-        
-        if existing_entry_index is not None:
-            # Actualizar el registro existente
-            MOCK_TIME_ENTRIES[existing_entry_index].update({
-                'check_in': data.get('check_in'),
-                'check_out': data.get('check_out'),
-                'total_hours': data.get('total_hours'),
-                'notes': data.get('notes')
-            })
-            
-            return jsonify({
-                'message': 'Registro actualizado (mock)',
-                'time_entry': MOCK_TIME_ENTRIES[existing_entry_index]
-            }), 200
-        else:
-            # Crear nuevo registro
-            new_entry = {
-                'id': len(MOCK_TIME_ENTRIES) + 1,
-                'user_id': target_user_id,
-                'date': data['date'],
-                'check_in': data.get('check_in'),
-                'check_out': data.get('check_out'),
-                'total_hours': data.get('total_hours'),
-                'notes': data.get('notes'),
-                'created_at': datetime.utcnow().isoformat()
-            }
-            MOCK_TIME_ENTRIES.append(new_entry)
-            
-            return jsonify({
-                'message': 'Registro creado (mock)',
-                'time_entry': new_entry
-            }), 201
-            
-    except Exception as e:
-        print(f"Error in mock data: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'message': f'Error: {str(e)}'}), 500
+    # Mock fallback
+    existing_index = None
+    for i, entry in enumerate(MOCK_TIME_ENTRIES):
+        if entry['user_id'] == target_user_id and entry['date'] == data['date']:
+            existing_index = i
+            break
+    
+    if existing_index is not None:
+        MOCK_TIME_ENTRIES[existing_index].update({
+            'check_in': data.get('check_in'),
+            'check_out': data.get('check_out'),
+            'total_hours': data.get('total_hours'),
+            'notes': data.get('notes')
+        })
+        return jsonify({
+            'message': 'Registro actualizado (mock)',
+            'time_entry': MOCK_TIME_ENTRIES[existing_index]
+        }), 200
+    else:
+        new_entry = {
+            'id': len(MOCK_TIME_ENTRIES) + 1,
+            'user_id': target_user_id,
+            'date': data['date'],
+            'check_in': data.get('check_in'),
+            'check_out': data.get('check_out'),
+            'total_hours': data.get('total_hours'),
+            'notes': data.get('notes'),
+            'created_at': datetime.utcnow().isoformat()
+        }
+        MOCK_TIME_ENTRIES.append(new_entry)
+        return jsonify({
+            'message': 'Registro creado (mock)',
+            'time_entry': new_entry
+        }), 201
 
 @app.route('/api/time-entries/<int:entry_id>', methods=['PUT'])
 @manager_or_admin_required
@@ -652,22 +570,18 @@ def update_time_entry(entry_id):
             if not entry:
                 return jsonify({'message': 'Registro no encontrado'}), 404
             
-            # Verificar permisos
             entry_owner = User.query.get(entry.user_id)
-            if not entry_owner:
-                return jsonify({'message': 'Usuario no encontrado'}), 404
             
-            # Admin puede editar todo
-            # Manager solo puede editar registros de su departamento (excepto los suyos)
+            # Validar permisos
             if user_role == 'manager':
                 if entry.user_id == user_id:
                     return jsonify({'message': 'No puedes editar tus propios registros'}), 403
                 if entry_owner.department != user_dept:
-                    return jsonify({'message': 'No tienes permiso para editar este registro'}), 403
+                    return jsonify({'message': 'No tienes permiso'}), 403
             
-            # Actualizar campos
+            # Actualizar
             if 'check_in' in data:
-                entry.check_in = datetime.fromisoformat(data['check_in'].replace('Z', '+00:00')) if data['check_in'] else None
+                entry.check_in = datetime.fromisoformat(data['check_in'].replace('Z', '+00:00'))
             if 'check_out' in data:
                 entry.check_out = datetime.fromisoformat(data['check_out'].replace('Z', '+00:00')) if data['check_out'] else None
             if 'total_hours' in data:
@@ -675,7 +589,6 @@ def update_time_entry(entry_id):
             if 'notes' in data:
                 entry.notes = data['notes']
             
-            entry.updated_at = datetime.utcnow()
             db.session.commit()
             
             return jsonify({
@@ -687,23 +600,19 @@ def update_time_entry(entry_id):
             db.session.rollback()
             return jsonify({'message': f'Error: {str(e)}'}), 500
     
-    # Mock data
+    # Mock fallback
     entry = next((e for e in MOCK_TIME_ENTRIES if e['id'] == entry_id), None)
     if not entry:
         return jsonify({'message': 'Registro no encontrado'}), 404
     
     entry_owner = next((u for u in MOCK_USERS if u['id'] == entry['user_id']), None)
-    if not entry_owner:
-        return jsonify({'message': 'Usuario no encontrado'}), 404
     
-    # Verificar permisos
     if user_role == 'manager':
         if entry['user_id'] == user_id:
             return jsonify({'message': 'No puedes editar tus propios registros'}), 403
         if entry_owner['department'] != user_dept:
-            return jsonify({'message': 'No tienes permiso para editar este registro'}), 403
+            return jsonify({'message': 'No tienes permiso'}), 403
     
-    # Actualizar campos
     if 'check_in' in data:
         entry['check_in'] = data['check_in']
     if 'check_out' in data:
@@ -732,89 +641,38 @@ def delete_time_entry(entry_id):
             if not entry:
                 return jsonify({'message': 'Registro no encontrado'}), 404
             
-            # Verificar permisos
             entry_owner = User.query.get(entry.user_id)
-            if not entry_owner:
-                return jsonify({'message': 'Usuario no encontrado'}), 404
             
-            # Admin puede eliminar todo
-            # Manager solo puede eliminar registros de su departamento (excepto los suyos)
             if user_role == 'manager':
                 if entry.user_id == user_id:
                     return jsonify({'message': 'No puedes eliminar tus propios registros'}), 403
                 if entry_owner.department != user_dept:
-                    return jsonify({'message': 'No tienes permiso para eliminar este registro'}), 403
+                    return jsonify({'message': 'No tienes permiso'}), 403
             
             db.session.delete(entry)
             db.session.commit()
             
-            return jsonify({'message': 'Registro eliminado exitosamente'}), 200
+            return jsonify({'message': 'Registro eliminado'}), 200
             
         except Exception as e:
             db.session.rollback()
             return jsonify({'message': f'Error: {str(e)}'}), 500
     
-    # Mock data
+    # Mock fallback
     entry = next((e for e in MOCK_TIME_ENTRIES if e['id'] == entry_id), None)
     if not entry:
         return jsonify({'message': 'Registro no encontrado'}), 404
     
     entry_owner = next((u for u in MOCK_USERS if u['id'] == entry['user_id']), None)
-    if not entry_owner:
-        return jsonify({'message': 'Usuario no encontrado'}), 404
     
-    # Verificar permisos
     if user_role == 'manager':
         if entry['user_id'] == user_id:
             return jsonify({'message': 'No puedes eliminar tus propios registros'}), 403
         if entry_owner['department'] != user_dept:
-            return jsonify({'message': 'No tienes permiso para eliminar este registro'}), 403
+            return jsonify({'message': 'No tienes permiso'}), 403
     
     MOCK_TIME_ENTRIES.remove(entry)
-    
-    return jsonify({'message': 'Registro eliminado exitosamente (mock)'}), 200
-
-@app.route('/api/users/<int:user_id>', methods=['DELETE'])
-@admin_required
-def delete_user(user_id):
-    current_user_id = int(get_jwt_identity())
-    
-    # No permitir eliminar tu propio usuario
-    if user_id == current_user_id:
-        return jsonify({'message': 'No puedes eliminar tu propio usuario'}), 403
-    
-    if db:
-        try:
-            user = User.query.get(user_id)
-            if not user:
-                return jsonify({'message': 'Usuario no encontrado'}), 404
-            
-            # Eliminar todos los registros de tiempo del usuario
-            TimeEntry.query.filter_by(user_id=user_id).delete()
-            
-            # Eliminar usuario
-            db.session.delete(user)
-            db.session.commit()
-            
-            return jsonify({'message': 'Usuario y sus registros eliminados exitosamente'}), 200
-            
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'message': f'Error: {str(e)}'}), 500
-    
-    # Mock data
-    user = next((u for u in MOCK_USERS if u['id'] == user_id), None)
-    if not user:
-        return jsonify({'message': 'Usuario no encontrado'}), 404
-    
-    # Eliminar registros del usuario
-    global MOCK_TIME_ENTRIES
-    MOCK_TIME_ENTRIES = [e for e in MOCK_TIME_ENTRIES if e['user_id'] != user_id]
-    
-    # Eliminar usuario
-    MOCK_USERS.remove(user)
-    
-    return jsonify({'message': 'Usuario y sus registros eliminados exitosamente (mock)'}), 200
+    return jsonify({'message': 'Registro eliminado (mock)'}), 200
 
 @app.route('/api/status')
 def get_status():
@@ -825,90 +683,44 @@ def get_status():
             db.session.execute(db.text('SELECT 1'))
             user_count = User.query.count()
             entry_count = TimeEntry.query.count()
-            db_status = f'✅ {DATABASE_TYPE} Connected & Ready'
+            db_status = f'✅ {DATABASE_TYPE} Connected'
         except Exception as e:
             user_count = len(MOCK_USERS)
             entry_count = len(MOCK_TIME_ENTRIES)
-            db_status = f'⚠️ Database error, using mock data: {str(e)}'
+            db_status = f'⚠️ Using mock data'
     else:
         user_count = len(MOCK_USERS)
         entry_count = len(MOCK_TIME_ENTRIES)
         db_status = '⚠️ Using mock data'
     
     return jsonify({
-        'backend': '✅ Backend Online with Authentication',
+        'backend': '✅ Online',
         'database': db_status,
-        'deploy': '✅ Render Deployment Successful',
-        'authentication': '✅ JWT Authentication Enabled',
         'statistics': {
             'users': user_count,
-            'time_entries': entry_count,
-            'absences': 0
+            'time_entries': entry_count
         },
-        'features': [
-            f'🔐 JWT Authentication System',
-            f'👥 Role-Based Access Control',
-            f'🗄️ {DATABASE_TYPE} Integration',
-            '📊 Real User & Time Entry Management',
-            '🔒 Password Encryption with Bcrypt',
-            '🎯 Protected Endpoints',
-            '👔 Admin, Manager & Worker Roles',
-            f'🐍 Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}'
-        ],
         'database_type': DATABASE_TYPE,
         'persistent': IS_PERSISTENT
     })
 
 # =================== INICIALIZACIÓN ===================
-
 def init_database():
     if not db:
-        print("⚠️ No database available, mock data ready")
+        print("⚠️ No database, using mock data")
         return
     
     try:
         with app.app_context():
-            db.create_all()
-            
-            if User.query.count() == 0:
-                sample_users = [
-                    User(
-                        name='Admin TimeTracer',
-                        email='admin@timetracer.com',
-                        password=bcrypt.generate_password_hash('admin123').decode('utf-8'),
-                        role='admin',
-                        department='IT'
-                    ),
-                    User(
-                        name='Juan Manager',
-                        email='juan@company.com',
-                        password=bcrypt.generate_password_hash('manager123').decode('utf-8'),
-                        role='manager',
-                        department='Operations'
-                    ),
-                    User(
-                        name='María Worker',
-                        email='maria@company.com',
-                        password=bcrypt.generate_password_hash('worker123').decode('utf-8'),
-                        role='worker',
-                        department='Operations'
-                    )
-                ]
+            # NO crear tablas, asumir que ya existen
+            print(f"✅ Using existing {DATABASE_TYPE} tables")
                 
-                for user in sample_users:
-                    db.session.add(user)
-                
-                db.session.commit()
-                print(f"✅ Sample users created with authentication!")
-                
-        print(f"✅ {DATABASE_TYPE} initialized successfully!")
     except Exception as e:
-        print(f"⚠️ Database initialization failed: {e}")
-        print("✅ Mock data fallback is ready")
+        print(f"⚠️ Database init info: {e}")
 
 init_database()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"🚀 Starting TimeTracer with Authentication & {DATABASE_TYPE}")
+    print(f"🚀 Starting TimeTracer with {DATABASE_TYPE}")
     app.run(host='0.0.0.0', port=port, debug=False)
