@@ -1,7 +1,9 @@
 import axios from 'axios';
 
-// Asegúrate de que esta URL coincide exactamente con tu backend desplegado
-const API_URL = import.meta.env.VITE_API_URL || 'https://timetracer-backend.onrender.com';
+// URL confirmada del backend
+const API_URL = 'https://time-tracer-bottega-back.onrender.com';
+
+console.log('🌐 API URL configurada:', API_URL);
 
 const api = axios.create({
   baseURL: API_URL,
@@ -14,22 +16,34 @@ const api = axios.create({
 // Interceptor para añadir el token a todas las peticiones
 api.interceptors.request.use(
   (config) => {
+    console.log('📤 Enviando petición a:', config.url);
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔑 Token añadido a la petición');
     }
     return config;
   },
   (error) => {
+    console.error('❌ Error en interceptor de request:', error);
     return Promise.reject(error);
   }
 );
 
 // Interceptor para manejar errores de autenticación
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('✅ Respuesta recibida:', response.status, response.data);
+    return response;
+  },
   (error) => {
+    console.error('❌ Error en respuesta:', error);
+    console.error('📄 Status:', error.response?.status);
+    console.error('📄 Data:', error.response?.data);
+    console.error('📄 URL:', error.config?.url);
+    
     if (error.response?.status === 401) {
+      console.log('🚪 Token inválido, limpiando sesión');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/';
@@ -40,7 +54,10 @@ api.interceptors.response.use(
 
 // Funciones de autenticación
 export const authAPI = {
-  login: (email, password) => api.post('/api/auth/login', { email, password }),
+  login: (email, password) => {
+    console.log('🔐 authAPI.login llamado con email:', email);
+    return api.post('/api/auth/login', { email, password });
+  },
   register: (userData) => api.post('/api/auth/register', userData),
   getCurrentUser: () => api.get('/api/auth/me')
 };
