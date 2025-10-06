@@ -379,17 +379,35 @@ def get_users():
     })
 
 @app.route('/api/users', methods=['POST'])
-@admin_required
+@token_required
 def create_user():
+    claims = get_jwt()
+    user_role = claims.get('role')
+    user_dept = claims.get('department')
     data = request.get_json()
     
-    required_fields = ['name', 'email', 'password', 'role', 'department']
+    # Validar campos requeridos
+    required_fields = ['name', 'email', 'password', 'department']
     if not all(field in data for field in required_fields):
         return jsonify({'message': 'Todos los campos son requeridos'}), 400
     
-    # Validar roles permitidos
-    if data['role'] not in ['worker', 'manager', 'admin']:
-        return jsonify({'message': 'Rol no válido'}), 400
+    # Obtener el rol del nuevo usuario (default: worker)
+    new_user_role = data.get('role', 'worker')
+    
+    # Validar permisos según el rol del usuario actual
+    if user_role == 'admin':
+        # Admin puede crear cualquier rol
+        if new_user_role not in ['worker', 'manager', 'admin']:
+            return jsonify({'message': 'Rol no válido'}), 400
+    elif user_role == 'manager':
+        # Manager solo puede crear workers en su departamento
+        if new_user_role != 'worker':
+            return jsonify({'message': 'Los managers solo pueden crear workers'}), 403
+        if data['department'] != user_dept:
+            return jsonify({'message': 'Solo puedes crear workers en tu departamento'}), 403
+    else:
+        # Workers no pueden crear usuarios
+        return jsonify({'message': 'No tienes permisos para crear usuarios'}), 403
     
     if db:
         try:
@@ -404,7 +422,7 @@ def create_user():
                 name=data['name'],
                 email=data['email'],
                 password=hashed_password,
-                role=data['role'],
+                role=new_user_role,
                 department=data['department']
             )
             db.session.add(new_user)
@@ -416,7 +434,8 @@ def create_user():
             }), 201
         except Exception as e:
             db.session.rollback()
-            return jsonify({'message': f'Error: {str(e)}'}), 500
+            print(f"Error creating user: {e}")
+            return jsonify({'message': f'Error al crear usuario: {str(e)}'}), 500
     
     # Mock data
     if any(u['email'] == data['email'] for u in MOCK_USERS):
@@ -428,7 +447,7 @@ def create_user():
         'name': data['name'],
         'email': data['email'],
         'password': hashed_password,
-        'role': data['role'],
+        'role': new_user_role,
         'department': data['department'],
         'status': 'active',
         'created_at': datetime.utcnow().isoformat()
@@ -493,49 +512,130 @@ def create_time_entry():
     user_id = int(get_jwt_identity())
     data = request.get_json()
     
+    # Validar campos requeridos
+    if 'date' not in data or 'check_in' not in data:
+        return jsonify({'message': 'Fecha y hora de entrada son requeridos'}), 400
+    
+    target_user_id = data.get('user_id', user_id)
+    
     # Workers solo pueden crear sus propias entradas
-    if user_role == 'worker' and data.get('user_id') != user_id:
+    if user_role == 'worker' and target_user_id != user_id:
         return jsonify({'message': 'No puedes crear registros para otros usuarios'}), 403
+    
+    # Managers pueden crear para workers de su departamento
+    if user_role == 'manager' and target_user_id != user_id:
+        target_user = None
+        if db:
+            target_user = User.query.get(target_user_id)
+        else:
+            target_user = next((u for u in MOCK_USERS if u['id'] == target_user_id), None)
+        
+        if not target_user or target_user.get('department' if not db else target_user.department) != claims.get('department'):
+            return jsonify({'message': 'No puedes crear registros para usuarios de otros departamentos'}), 403
     
     if db:
         try:
-            new_entry = TimeEntry(
-                user_id=data.get('user_id', user_id),
-                date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
-                check_in=datetime.fromisoformat(data['check_in'].replace('Z', '+00:00')) if data.get('check_in') else None,
-                check_out=datetime.fromisoformat(data['check_out'].replace('Z', '+00:00')) if data.get('check_out') else None,
-                total_hours=data.get('total_hours'),
-                notes=data.get('notes')
-            )
+            # Parsear fechas
+            entry_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+            check_in = datetime.fromisoformat(data['check_in'].replace('Z', '+00:00')) if data.get('check_in') else None
+            check_out = None
+            if data.get('check_out'):
+                check_out = datetime.fromisoformat(data['check_out'].replace('Z', '+00:00'))
             
-            db.session.add(new_entry)
-            db.session.commit()
+            # Buscar si ya existe un registro para ese usuario y fecha
+            existing_entry = TimeEntry.query.filter_by(
+                user_id=target_user_id,
+                date=entry_date
+            ).first()
             
-            return jsonify({
-                'message': 'Registro creado',
-                'time_entry': new_entry.to_dict()
-            }), 201
+            if existing_entry:
+                # Actualizar el registro existente
+                existing_entry.check_in = check_in
+                existing_entry.check_out = check_out
+                existing_entry.total_hours = data.get('total_hours')
+                existing_entry.notes = data.get('notes')
+                existing_entry.updated_at = datetime.utcnow()
+                
+                db.session.commit()
+                
+                return jsonify({
+                    'message': 'Registro actualizado',
+                    'time_entry': existing_entry.to_dict()
+                }), 200
+            else:
+                # Crear nuevo registro
+                new_entry = TimeEntry(
+                    user_id=target_user_id,
+                    date=entry_date,
+                    check_in=check_in,
+                    check_out=check_out,
+                    total_hours=data.get('total_hours'),
+                    notes=data.get('notes')
+                )
+                
+                db.session.add(new_entry)
+                db.session.commit()
+                
+                return jsonify({
+                    'message': 'Registro creado',
+                    'time_entry': new_entry.to_dict()
+                }), 201
+                
+        except ValueError as e:
+            return jsonify({'message': f'Formato de fecha inválido: {str(e)}'}), 400
         except Exception as e:
             db.session.rollback()
+            print(f"Error creating time entry: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'message': f'Error: {str(e)}'}), 500
     
     # Mock data
-    new_entry = {
-        'id': len(MOCK_TIME_ENTRIES) + 1,
-        'user_id': data.get('user_id', user_id),
-        'date': data['date'],
-        'check_in': data.get('check_in'),
-        'check_out': data.get('check_out'),
-        'total_hours': data.get('total_hours'),
-        'notes': data.get('notes'),
-        'created_at': datetime.utcnow().isoformat()
-    }
-    MOCK_TIME_ENTRIES.append(new_entry)
-    
-    return jsonify({
-        'message': 'Registro creado (mock)',
-        'time_entry': new_entry
-    }), 201
+    try:
+        # Buscar si ya existe un registro para ese usuario y fecha
+        existing_entry_index = None
+        for i, entry in enumerate(MOCK_TIME_ENTRIES):
+            if entry['user_id'] == target_user_id and entry['date'] == data['date']:
+                existing_entry_index = i
+                break
+        
+        if existing_entry_index is not None:
+            # Actualizar el registro existente
+            MOCK_TIME_ENTRIES[existing_entry_index].update({
+                'check_in': data.get('check_in'),
+                'check_out': data.get('check_out'),
+                'total_hours': data.get('total_hours'),
+                'notes': data.get('notes')
+            })
+            
+            return jsonify({
+                'message': 'Registro actualizado (mock)',
+                'time_entry': MOCK_TIME_ENTRIES[existing_entry_index]
+            }), 200
+        else:
+            # Crear nuevo registro
+            new_entry = {
+                'id': len(MOCK_TIME_ENTRIES) + 1,
+                'user_id': target_user_id,
+                'date': data['date'],
+                'check_in': data.get('check_in'),
+                'check_out': data.get('check_out'),
+                'total_hours': data.get('total_hours'),
+                'notes': data.get('notes'),
+                'created_at': datetime.utcnow().isoformat()
+            }
+            MOCK_TIME_ENTRIES.append(new_entry)
+            
+            return jsonify({
+                'message': 'Registro creado (mock)',
+                'time_entry': new_entry
+            }), 201
+            
+    except Exception as e:
+        print(f"Error in mock data: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Error: {str(e)}'}), 500
 
 @app.route('/api/time-entries/<int:entry_id>', methods=['PUT'])
 @manager_or_admin_required

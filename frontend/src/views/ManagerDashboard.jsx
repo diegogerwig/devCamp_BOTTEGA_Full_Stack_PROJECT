@@ -64,16 +64,19 @@ function ManagerDashboard() {
 
 		try {
 			const now = getCurrentLocalDateTime();
-			await timeEntriesAPI.create({
+			const response = await timeEntriesAPI.create({
 				user_id: user.id,
 				date: now.split('T')[0],
 				check_in: now,
 				check_out: null,
 				notes: 'Manager check-in'
 			});
+			console.log('Check-in exitoso:', response.data);
 			await loadData();
 		} catch (error) {
 			console.error('Error en check-in:', error);
+			console.error('Error response:', error.response?.data);
+			alert(error.response?.data?.message || 'Error al registrar entrada');
 		}
 	};
 
@@ -87,7 +90,7 @@ function ManagerDashboard() {
 			const now = getCurrentLocalDateTime();
 			const totalHours = parseFloat(calculateTotalHours(openEntry.check_in, now));
 
-			await timeEntriesAPI.create({
+			const response = await timeEntriesAPI.create({
 				user_id: user.id,
 				date: openEntry.date,
 				check_in: openEntry.check_in,
@@ -95,9 +98,12 @@ function ManagerDashboard() {
 				total_hours: totalHours,
 				notes: openEntry.notes
 			});
+			console.log('Check-out exitoso:', response.data);
 			await loadData();
 		} catch (error) {
 			console.error('Error en check-out:', error);
+			console.error('Error response:', error.response?.data);
+			alert(error.response?.data?.message || 'Error al registrar salida');
 		}
 	};
 

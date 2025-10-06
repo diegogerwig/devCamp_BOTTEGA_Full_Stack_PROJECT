@@ -32,6 +32,7 @@ function WorkerDashboard() {
 			setOpenEntry(open || null);
 		} catch (error) {
 			console.error('Error cargando datos:', error);
+			alert(error.response?.data?.message || 'Error al cargar datos');
 		}
 		setLoading(false);
 	};
@@ -54,11 +55,14 @@ function WorkerDashboard() {
 				notes: 'Registro de entrada'
 			};
 
-			await timeEntriesAPI.create(newEntry);
+			console.log('Enviando check-in:', newEntry);
+			const response = await timeEntriesAPI.create(newEntry);
+			console.log('Check-in exitoso:', response.data);
 			await loadData();
 		} catch (error) {
 			console.error('Error en check-in:', error);
-			alert('Error al registrar entrada');
+			console.error('Error response:', error.response?.data);
+			alert(error.response?.data?.message || 'Error al registrar entrada');
 		}
 	};
 
@@ -81,11 +85,14 @@ function WorkerDashboard() {
 				notes: openEntry.notes || 'Registro completado'
 			};
 
-			await timeEntriesAPI.create(updatedEntry);
+			console.log('Enviando check-out:', updatedEntry);
+			const response = await timeEntriesAPI.create(updatedEntry);
+			console.log('Check-out exitoso:', response.data);
 			await loadData();
 		} catch (error) {
 			console.error('Error en check-out:', error);
-			alert('Error al registrar salida');
+			console.error('Error response:', error.response?.data);
+			alert(error.response?.data?.message || 'Error al registrar salida');
 		}
 	};
 
@@ -133,8 +140,8 @@ function WorkerDashboard() {
 								onClick={handleCheckIn}
 								disabled={hasOpenEntry}
 								className={`px-8 py-4 rounded-xl font-bold text-lg transition-all transform ${hasOpenEntry
-										? 'bg-gray-600 cursor-not-allowed opacity-50'
-										: 'bg-green-600 hover:bg-green-700 hover:scale-105 shadow-lg'
+									? 'bg-gray-600 cursor-not-allowed opacity-50'
+									: 'bg-green-600 hover:bg-green-700 hover:scale-105 shadow-lg'
 									}`}
 							>
 								✅ Marcar Entrada
@@ -144,8 +151,8 @@ function WorkerDashboard() {
 								onClick={handleCheckOut}
 								disabled={!hasOpenEntry}
 								className={`px-8 py-4 rounded-xl font-bold text-lg transition-all transform ${!hasOpenEntry
-										? 'bg-gray-600 cursor-not-allowed opacity-50'
-										: 'bg-red-600 hover:bg-red-700 hover:scale-105 shadow-lg'
+									? 'bg-gray-600 cursor-not-allowed opacity-50'
+									: 'bg-red-600 hover:bg-red-700 hover:scale-105 shadow-lg'
 									}`}
 							>
 								🚪 Marcar Salida
