@@ -594,14 +594,7 @@ def init_database():
                         email='maria@company.com',
                         password=bcrypt.generate_password_hash('worker123').decode('utf-8'),
                         role='worker',
-                        department='Sales'
-                    ),
-                    User(
-                        name='Carlos Developer',
-                        email='carlos@company.com',
-                        password=bcrypt.generate_password_hash('worker123').decode('utf-8'),
-                        role='worker',
-                        department='IT'
+                        department='Operations'
                     )
                 ]
                 
