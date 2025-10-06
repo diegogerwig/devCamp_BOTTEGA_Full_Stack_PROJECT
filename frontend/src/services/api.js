@@ -42,8 +42,9 @@ api.interceptors.response.use(
     console.error('📄 Data:', error.response?.data);
     console.error('📄 URL:', error.config?.url);
     
-    if (error.response?.status === 401) {
-      console.log('🚪 Token inválido, limpiando sesión');
+    // SOLO logout si es un error 401 en una petición que NO sea /api/auth/me
+    if (error.response?.status === 401 && !error.config?.url?.includes('/api/auth/me')) {
+      console.log('🚪 Token inválido en petición protegida, limpiando sesión');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/';

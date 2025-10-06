@@ -8,6 +8,13 @@ import WorkerDashboard from './views/WorkerDashboard';
 function AppContent() {
   const { user, loading, isAuthenticated } = useAuth();
 
+  console.log('🎭 AppContent - Estado actual:', {
+    user: user?.name,
+    role: user?.role,
+    loading,
+    isAuthenticated
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -23,8 +30,11 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
+    console.log('❌ No autenticado, mostrando Login');
     return <Login />;
   }
+
+  console.log('✅ Autenticado, mostrando dashboard para rol:', user?.role);
 
   // Renderizar dashboard según el rol del usuario
   switch (user?.role) {

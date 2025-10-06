@@ -142,7 +142,7 @@ def home():
     return jsonify({
         'message': f'🚀 TimeTracer API v2.0 with Authentication & {DATABASE_TYPE}',
         'status': 'success',
-        'version': '2025_10_06 15:47',
+        'version': '2025_10_06 15:58',
         'database': DATABASE_TYPE,
         'persistent': IS_PERSISTENT,
         'authentication': 'JWT Enabled',

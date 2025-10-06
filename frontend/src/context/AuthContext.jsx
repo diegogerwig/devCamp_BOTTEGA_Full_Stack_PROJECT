@@ -24,16 +24,34 @@ export const AuthProvider = ({ children }) => {
 		const token = localStorage.getItem('token');
 		const savedUser = localStorage.getItem('user');
 
+		console.log('🔍 checkAuth - Token:', token ? 'Existe' : 'No existe');
+		console.log('🔍 checkAuth - User:', savedUser ? 'Existe' : 'No existe');
+
 		if (token && savedUser) {
 			try {
-				const response = await authAPI.getCurrentUser();
-				setUser(response.data.user);
+				// Primero establecer el usuario del localStorage
+				const parsedUser = JSON.parse(savedUser);
+				setUser(parsedUser);
 				setIsAuthenticated(true);
+				console.log('✅ Usuario cargado desde localStorage:', parsedUser);
+
+				// Luego verificar con el backend (sin bloquear la UI)
+				try {
+					const response = await authAPI.getCurrentUser();
+					console.log('✅ Usuario verificado con backend:', response.data.user);
+					setUser(response.data.user);
+				} catch (verifyError) {
+					console.warn('⚠️ No se pudo verificar con backend, pero token existe');
+					// No hacer logout aquí, dejar que el usuario use la app
+				}
 			} catch (error) {
-				console.error('Error verificando autenticación:', error);
+				console.error('❌ Error parseando usuario de localStorage:', error);
 				logout();
 			}
+		} else {
+			console.log('❌ No hay token o usuario guardado');
 		}
+
 		setLoading(false);
 	};
 
