@@ -13,10 +13,17 @@ function Login() {
 		setError('');
 		setLoading(true);
 
+		console.log('🔐 Intentando login con:', email);
+
 		const result = await login(email, password);
+
+		console.log('📥 Resultado del login:', result);
 
 		if (!result.success) {
 			setError(result.message);
+			console.error('❌ Login fallido:', result.message);
+		} else {
+			console.log('✅ Login exitoso, usuario:', result.user);
 		}
 
 		setLoading(false);

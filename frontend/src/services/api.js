@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = 'https://time-tracer-bottega-back.onrender.com';
+// Asegúrate de que esta URL coincide exactamente con tu backend desplegado
+const API_URL = import.meta.env.VITE_API_URL || 'https://timetracer-backend.onrender.com';
 
 const api = axios.create({
   baseURL: API_URL,
