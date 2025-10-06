@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import jsonify
-from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
 
 def token_required(f):
     @wraps(f)
@@ -17,8 +17,8 @@ def admin_required(f):
     def decorated(*args, **kwargs):
         try:
             verify_jwt_in_request()
-            current_user = get_jwt_identity()
-            if current_user.get('role') != 'admin':
+            claims = get_jwt()
+            if claims.get('role') != 'admin':
                 return jsonify({'message': 'Acceso denegado. Se requiere rol de administrador'}), 403
             return f(*args, **kwargs)
         except Exception as e:
@@ -30,8 +30,8 @@ def manager_or_admin_required(f):
     def decorated(*args, **kwargs):
         try:
             verify_jwt_in_request()
-            current_user = get_jwt_identity()
-            if current_user.get('role') not in ['admin', 'manager']:
+            claims = get_jwt()
+            if claims.get('role') not in ['admin', 'manager']:
                 return jsonify({'message': 'Acceso denegado. Se requiere rol de manager o admin'}), 403
             return f(*args, **kwargs)
         except Exception as e:

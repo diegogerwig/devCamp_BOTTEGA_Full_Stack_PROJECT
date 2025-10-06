@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request, redirect
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, get_jwt
 from flask_bcrypt import Bcrypt
 import os
 import sys
@@ -16,11 +16,13 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 jwt = JWTManager(app)
 bcrypt = Bcrypt(app)
 
+# Variables globales para determinar qué base de datos usar
 DATABASE_URL = os.getenv('DATABASE_URL')
 db = None
 DATABASE_TYPE = 'Mock Data'
 IS_PERSISTENT = False
 
+# Intentar configurar base de datos paso a paso
 if DATABASE_URL:
     print(f"🔍 DATABASE_URL found: {DATABASE_URL[:50]}...")
     try:
@@ -142,7 +144,7 @@ def home():
     return jsonify({
         'message': f'🚀 TimeTracer API v2.0 with Authentication & {DATABASE_TYPE}',
         'status': 'success',
-        'version': '2025_10_06 15:58',
+        'version': '2.0.0',
         'database': DATABASE_TYPE,
         'persistent': IS_PERSISTENT,
         'authentication': 'JWT Enabled',
@@ -195,9 +197,10 @@ def login():
             user = User.query.filter_by(email=email).first()
             
             if user and bcrypt.check_password_hash(user.password, password):
+                # CRÍTICO: identity debe ser un string o un dict simple, NO un dict con 'id'
                 access_token = create_access_token(
-                    identity={
-                        'id': user.id,
+                    identity=str(user.id),  # Usar string del ID
+                    additional_claims={
                         'email': user.email,
                         'role': user.role,
                         'name': user.name,
@@ -224,9 +227,10 @@ def login():
         user_copy = user.copy()
         user_copy.pop('password')
         
+        # CRÍTICO: identity debe ser un string, NO un dict
         access_token = create_access_token(
-            identity={
-                'id': user['id'],
+            identity=str(user['id']),  # Usar string del ID
+            additional_claims={
                 'email': user['email'],
                 'role': user['role'],
                 'name': user['name'],
@@ -307,40 +311,47 @@ def register():
 @app.route('/api/auth/me', methods=['GET'])
 @token_required
 def get_current_user():
-    current_user = get_jwt_identity()
+    user_id = get_jwt_identity()  # Ahora es un string con el ID
+    claims = get_jwt()  # Obtener los claims adicionales
     
     if db:
         try:
-            user = User.query.get(current_user['id'])
+            user = User.query.get(int(user_id))
             if user:
                 return jsonify({'user': user.to_dict()}), 200
         except Exception as e:
             print(f"Database error: {e}")
     
-    # Mock data
-    user = next((u for u in MOCK_USERS if u['id'] == current_user['id']), None)
-    if user:
-        user_copy = user.copy()
-        user_copy.pop('password')
-        return jsonify({'user': user_copy}), 200
+    # Mock data - reconstruir usuario desde claims
+    user_data = {
+        'id': int(user_id),
+        'email': claims.get('email'),
+        'role': claims.get('role'),
+        'name': claims.get('name'),
+        'department': claims.get('department'),
+        'status': 'active'
+    }
     
-    return jsonify({'message': 'Usuario no encontrado'}), 404
+    return jsonify({'user': user_data}), 200
 
 # =================== RUTAS PROTEGIDAS ===================
 
 @app.route('/api/users', methods=['GET'])
 @token_required
 def get_users():
-    current_user = get_jwt_identity()
+    claims = get_jwt()
+    user_role = claims.get('role')
+    user_dept = claims.get('department')
+    user_id = int(get_jwt_identity())
     
     if db:
         try:
-            if current_user['role'] == 'admin':
+            if user_role == 'admin':
                 users = User.query.all()
-            elif current_user['role'] == 'manager':
-                users = User.query.filter_by(department=current_user['department']).all()
+            elif user_role == 'manager':
+                users = User.query.filter_by(department=user_dept).all()
             else:
-                users = User.query.filter_by(id=current_user['id']).all()
+                users = User.query.filter_by(id=user_id).all()
             
             return jsonify({
                 'users': [user.to_dict() for user in users],
@@ -351,12 +362,12 @@ def get_users():
             print(f"Database error: {e}")
     
     # Mock data
-    if current_user['role'] == 'admin':
+    if user_role == 'admin':
         filtered_users = MOCK_USERS
-    elif current_user['role'] == 'manager':
-        filtered_users = [u for u in MOCK_USERS if u['department'] == current_user['department']]
+    elif user_role == 'manager':
+        filtered_users = [u for u in MOCK_USERS if u['department'] == user_dept]
     else:
-        filtered_users = [u for u in MOCK_USERS if u['id'] == current_user['id']]
+        filtered_users = [u for u in MOCK_USERS if u['id'] == user_id]
     
     users_without_password = [{k: v for k, v in u.items() if k != 'password'} for u in filtered_users]
     
@@ -418,18 +429,21 @@ def create_user():
 @app.route('/api/time-entries', methods=['GET'])
 @token_required
 def get_time_entries():
-    current_user = get_jwt_identity()
+    claims = get_jwt()
+    user_role = claims.get('role')
+    user_dept = claims.get('department')
+    user_id = int(get_jwt_identity())
     
     if db:
         try:
-            if current_user['role'] == 'admin':
+            if user_role == 'admin':
                 entries = TimeEntry.query.order_by(TimeEntry.date.desc()).all()
-            elif current_user['role'] == 'manager':
-                dept_users = User.query.filter_by(department=current_user['department']).all()
+            elif user_role == 'manager':
+                dept_users = User.query.filter_by(department=user_dept).all()
                 user_ids = [u.id for u in dept_users]
                 entries = TimeEntry.query.filter(TimeEntry.user_id.in_(user_ids)).order_by(TimeEntry.date.desc()).all()
             else:
-                entries = TimeEntry.query.filter_by(user_id=current_user['id']).order_by(TimeEntry.date.desc()).all()
+                entries = TimeEntry.query.filter_by(user_id=user_id).order_by(TimeEntry.date.desc()).all()
             
             return jsonify({
                 'time_entries': [entry.to_dict() for entry in entries],
@@ -440,13 +454,13 @@ def get_time_entries():
             print(f"Database error: {e}")
     
     # Mock data
-    if current_user['role'] == 'admin':
+    if user_role == 'admin':
         filtered_entries = MOCK_TIME_ENTRIES
-    elif current_user['role'] == 'manager':
-        dept_users = [u['id'] for u in MOCK_USERS if u['department'] == current_user['department']]
+    elif user_role == 'manager':
+        dept_users = [u['id'] for u in MOCK_USERS if u['department'] == user_dept]
         filtered_entries = [e for e in MOCK_TIME_ENTRIES if e['user_id'] in dept_users]
     else:
-        filtered_entries = [e for e in MOCK_TIME_ENTRIES if e['user_id'] == current_user['id']]
+        filtered_entries = [e for e in MOCK_TIME_ENTRIES if e['user_id'] == user_id]
     
     return jsonify({
         'time_entries': filtered_entries,
@@ -457,17 +471,19 @@ def get_time_entries():
 @app.route('/api/time-entries', methods=['POST'])
 @token_required
 def create_time_entry():
-    current_user = get_jwt_identity()
+    claims = get_jwt()
+    user_role = claims.get('role')
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     
     # Workers solo pueden crear sus propias entradas
-    if current_user['role'] == 'worker' and data.get('user_id') != current_user['id']:
+    if user_role == 'worker' and data.get('user_id') != user_id:
         return jsonify({'message': 'No puedes crear registros para otros usuarios'}), 403
     
     if db:
         try:
             new_entry = TimeEntry(
-                user_id=data.get('user_id', current_user['id']),
+                user_id=data.get('user_id', user_id),
                 date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
                 check_in=datetime.fromisoformat(data['check_in'].replace('Z', '+00:00')) if data.get('check_in') else None,
                 check_out=datetime.fromisoformat(data['check_out'].replace('Z', '+00:00')) if data.get('check_out') else None,
@@ -489,7 +505,7 @@ def create_time_entry():
     # Mock data
     new_entry = {
         'id': len(MOCK_TIME_ENTRIES) + 1,
-        'user_id': data.get('user_id', current_user['id']),
+        'user_id': data.get('user_id', user_id),
         'date': data['date'],
         'check_in': data.get('check_in'),
         'check_out': data.get('check_out'),
