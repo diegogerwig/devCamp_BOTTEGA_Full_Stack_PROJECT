@@ -14,16 +14,32 @@ function Login() {
 		setLoading(true);
 
 		console.log('🔐 Intentando login con:', email);
+		console.log('📍 Estado antes del login:', {
+			isAuthenticated: 'pendiente',
+			token: localStorage.getItem('token') ? 'existe' : 'no existe',
+			user: localStorage.getItem('user') ? 'existe' : 'no existe'
+		});
 
 		const result = await login(email, password);
 
 		console.log('📥 Resultado del login:', result);
+		console.log('📍 Estado después del login:', {
+			success: result.success,
+			token: localStorage.getItem('token') ? 'existe' : 'no existe',
+			user: localStorage.getItem('user') ? 'existe' : 'no existe'
+		});
 
 		if (!result.success) {
 			setError(result.message);
 			console.error('❌ Login fallido:', result.message);
 		} else {
 			console.log('✅ Login exitoso, usuario:', result.user);
+			console.log('⏳ Esperando actualización del estado...');
+
+			// Pequeño delay para asegurar que React actualice
+			setTimeout(() => {
+				console.log('🔄 Estado debería estar actualizado ahora');
+			}, 100);
 		}
 
 		setLoading(false);

@@ -59,26 +59,41 @@ export const AuthProvider = ({ children }) => {
 		try {
 			console.log('🔄 Llamando a API de login...');
 			const response = await authAPI.login(email, password);
-			console.log('📦 Respuesta del servidor:', response.data);
+			console.log('📦 Respuesta completa del servidor:', response);
+			console.log('📦 response.data:', response.data);
 
 			const { access_token, user } = response.data;
 
-			console.log('💾 Guardando token y usuario en localStorage');
+			if (!access_token || !user) {
+				console.error('❌ Respuesta incompleta:', { access_token, user });
+				throw new Error('Respuesta del servidor incompleta');
+			}
+
+			console.log('💾 Guardando token en localStorage');
 			localStorage.setItem('token', access_token);
+
+			console.log('💾 Guardando usuario en localStorage');
 			localStorage.setItem('user', JSON.stringify(user));
 
-			console.log('✅ Actualizando estado de autenticación');
+			console.log('✅ Verificando que se guardó:');
+			console.log('   - Token guardado:', localStorage.getItem('token') ? 'SÍ' : 'NO');
+			console.log('   - User guardado:', localStorage.getItem('user') ? 'SÍ' : 'NO');
+
+			console.log('🔄 Actualizando estado de React');
 			setUser(user);
 			setIsAuthenticated(true);
 
 			console.log('🎉 Login completado exitosamente');
+			console.log('👤 Usuario actual:', user);
+
 			return { success: true, user };
 		} catch (error) {
 			console.error('❌ Error en login:', error);
 			console.error('📄 Detalles del error:', error.response?.data);
+			console.error('📄 Status code:', error.response?.status);
 			return {
 				success: false,
-				message: error.response?.data?.message || 'Error al iniciar sesión'
+				message: error.response?.data?.message || error.message || 'Error al iniciar sesión'
 			};
 		}
 	};
