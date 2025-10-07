@@ -192,6 +192,7 @@ def favicon():
 
 @app.route('/')
 def home():
+    # Initialize db_info structure early
     db_info = {
         'type': DATABASE_TYPE,
         'persistent': IS_PERSISTENT,
@@ -241,6 +242,7 @@ def home():
                 elif last_entry_change:
                     last_change = last_entry_change
                 
+                # Add users stats FIRST
                 db_info['users'] = {
                     'total': total_users,
                     'admin': admins,
@@ -248,6 +250,7 @@ def home():
                     'worker': workers
                 }
                 
+                # Then time_entries stats
                 db_info['time_entries'] = {
                     'total': total_entries,
                     'open': open_entries,
@@ -255,6 +258,7 @@ def home():
                     'total_hours_worked': round(total_hours, 2)
                 }
                 
+                # Finally last_database_change
                 if last_change:
                     db_info['last_database_change'] = last_change.isoformat()
                 
@@ -267,18 +271,26 @@ def home():
             db_info['status'] = 'error'
             db_info['error'] = str(e)
     
-    return jsonify({
-        'app': 'TimeTracer API',
-        'status': 'online',
-        'database': db_info,
-        'endpoints': {
-            'status': '/api/status',
-            'health': '/api/health',
-            'login': 'POST /api/auth/login',
-            'users': '/api/users',
-            'time_entries': '/api/time-entries'
-        }
-    })
+    # Get the base URL from the request
+    base_url = request.url_root.rstrip('/')
+    
+    # Build response with explicit order using list of tuples
+    from collections import OrderedDict
+    
+    response_data = OrderedDict([
+        ('app', 'TimeTracer API'),
+        ('status', 'online'),
+        ('database', db_info),
+        ('endpoints', {
+            'status': f'{base_url}/api/status',
+            'health': f'{base_url}/api/health',
+            'login': f'POST {base_url}/api/auth/login',
+            'users': f'{base_url}/api/users',
+            'time_entries': f'{base_url}/api/time-entries'
+        })
+    ])
+    
+    return jsonify(response_data)
 
 @app.route('/api/health')
 def health_check():
