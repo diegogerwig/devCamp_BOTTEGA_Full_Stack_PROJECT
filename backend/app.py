@@ -75,7 +75,6 @@ if db:
         id = db.Column(db.Integer, primary_key=True)
         name = db.Column(db.String(100), nullable=False)
         email = db.Column(db.String(120), unique=True, nullable=False)
-        # Usar el nombre correcto de la columna en PostgreSQL
         users_password = db.Column('users_password', db.String(255), nullable=False)
         role = db.Column(db.String(20), nullable=False, default='worker')
         department = db.Column(db.String(50), nullable=False)
@@ -292,86 +291,116 @@ def get_users():
 @app.route('/api/users', methods=['POST'])
 @token_required
 def create_user():
-    claims = get_jwt()
-    user_role = claims.get('role')
-    user_dept = claims.get('department')
-    data = request.get_json()
-    
-    # Validar campos
-    required_fields = ['name', 'email', 'password', 'department']
-    if not all(field in data for field in required_fields):
-        return jsonify({'message': 'Todos los campos son requeridos'}), 400
-    
-    new_user_role = data.get('role', 'worker')
-    
-    # Validar permisos
-    if user_role == 'admin':
-        if new_user_role not in ['worker', 'manager', 'admin']:
-            return jsonify({'message': 'Rol no válido'}), 400
-    elif user_role == 'manager':
-        if new_user_role != 'worker':
-            return jsonify({'message': 'Los managers solo pueden crear workers'}), 403
-        if data['department'] != user_dept:
-            return jsonify({'message': 'Solo puedes crear workers en tu departamento'}), 403
-    else:
-        return jsonify({'message': 'No tienes permisos para crear usuarios'}), 403
-    
-    if db:
-        try:
-            # Verificar si existe
-            existing = User.query.filter_by(email=data['email']).first()
-            if existing:
-                return jsonify({'message': 'El email ya está registrado'}), 400
-            
-            hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-            
-            new_user = User(
-                name=data['name'],
-                email=data['email'],
-                users_password=hashed_password,
-                role=new_user_role,
-                department=data['department']
-            )
-            
-            db.session.add(new_user)
-            db.session.commit()
-            
-            return jsonify({
-                'message': 'Usuario creado exitosamente',
-                'user': new_user.to_dict()
-            }), 201
-            
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error creating user: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'message': f'Error: {str(e)}'}), 500
-    
-    # Mock fallback
-    if any(u['email'] == data['email'] for u in MOCK_USERS):
-        return jsonify({'message': 'El email ya está registrado'}), 400
-    
-    hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-    new_user = {
-        'id': len(MOCK_USERS) + 1,
-        'name': data['name'],
-        'email': data['email'],
-        'password': hashed_password,
-        'role': new_user_role,
-        'department': data['department'],
-        'status': 'active',
-        'created_at': datetime.utcnow().isoformat()
-    }
-    MOCK_USERS.append(new_user)
-    
-    user_copy = new_user.copy()
-    user_copy.pop('password')
-    
-    return jsonify({
-        'message': 'Usuario creado (mock)',
-        'user': user_copy
-    }), 201
+    try:
+        claims = get_jwt()
+        user_role = claims.get('role')
+        user_dept = claims.get('department')
+        data = request.get_json()
+        
+        print(f"📥 Recibiendo petición para crear usuario")
+        print(f"👤 Usuario actual: {claims.get('name')} ({user_role})")
+        print(f"📦 Datos recibidos: {data}")
+        
+        # Validar campos
+        required_fields = ['name', 'email', 'password', 'department']
+        if not all(field in data for field in required_fields):
+            print(f"❌ Faltan campos requeridos")
+            return jsonify({'message': 'Todos los campos son requeridos'}), 400
+        
+        new_user_role = data.get('role', 'worker')
+        
+        # Validar permisos
+        if user_role == 'admin':
+            if new_user_role not in ['worker', 'manager', 'admin']:
+                return jsonify({'message': 'Rol no válido'}), 400
+        elif user_role == 'manager':
+            if new_user_role != 'worker':
+                return jsonify({'message': 'Los managers solo pueden crear workers'}), 403
+            if data['department'] != user_dept:
+                return jsonify({'message': 'Solo puedes crear workers en tu departamento'}), 403
+        else:
+            return jsonify({'message': 'No tienes permisos para crear usuarios'}), 403
+        
+        if db:
+            try:
+                print(f"🔍 Verificando si el email ya existe...")
+                # Verificar si existe
+                existing = User.query.filter_by(email=data['email']).first()
+                if existing:
+                    print(f"❌ El email {data['email']} ya está registrado")
+                    return jsonify({'message': 'El email ya está registrado'}), 400
+                
+                print(f"🔐 Generando hash de contraseña...")
+                hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
+                
+                print(f"👤 Creando nuevo usuario con datos:")
+                print(f"   - name: {data['name']}")
+                print(f"   - email: {data['email']}")
+                print(f"   - role: {new_user_role}")
+                print(f"   - department: {data['department']}")
+                
+                new_user = User(
+                    name=data['name'],
+                    email=data['email'],
+                    users_password=hashed_password,
+                    role=new_user_role,
+                    department=data['department'],
+                    status='active'
+                )
+                
+                print(f"💾 Añadiendo usuario a la sesión...")
+                db.session.add(new_user)
+                
+                print(f"💾 Guardando en base de datos...")
+                db.session.commit()
+                
+                print(f"✅ Usuario creado exitosamente con ID: {new_user.id}")
+                
+                return jsonify({
+                    'message': 'Usuario creado exitosamente',
+                    'user': new_user.to_dict()
+                }), 201
+                
+            except Exception as e:
+                db.session.rollback()
+                print(f"❌ Error creando usuario en DB: {str(e)}")
+                import traceback
+                print(f"📄 Traceback completo:")
+                traceback.print_exc()
+                return jsonify({'message': f'Error en base de datos: {str(e)}'}), 500
+        
+        # Mock fallback
+        print(f"⚠️ Usando datos mock (no hay DB)")
+        if any(u['email'] == data['email'] for u in MOCK_USERS):
+            return jsonify({'message': 'El email ya está registrado'}), 400
+        
+        hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
+        new_user = {
+            'id': len(MOCK_USERS) + 1,
+            'name': data['name'],
+            'email': data['email'],
+            'password': hashed_password,
+            'role': new_user_role,
+            'department': data['department'],
+            'status': 'active',
+            'created_at': datetime.utcnow().isoformat()
+        }
+        MOCK_USERS.append(new_user)
+        
+        user_copy = new_user.copy()
+        user_copy.pop('password')
+        
+        return jsonify({
+            'message': 'Usuario creado (mock)',
+            'user': user_copy
+        }), 201
+        
+    except Exception as e:
+        print(f"❌ Error general en create_user: {str(e)}")
+        import traceback
+        print(f"📄 Traceback completo:")
+        traceback.print_exc()
+        return jsonify({'message': f'Error del servidor: {str(e)}'}), 500
 
 @app.route('/api/users/<int:user_id>', methods=['DELETE'])
 @admin_required
@@ -698,10 +727,21 @@ def get_status():
         'database': db_status,
         'statistics': {
             'users': user_count,
-            'time_entries': entry_count
+            'time_entries': entry_count,
+            'absences': 0
         },
         'database_type': DATABASE_TYPE,
-        'persistent': IS_PERSISTENT
+        'persistent': IS_PERSISTENT,
+        'features': [
+            'Gestión de usuarios con roles (Admin, Manager, Worker)',
+            'Registro de jornadas laborales con entrada/salida',
+            'Control de permisos por roles',
+            'Dashboard personalizado por rol',
+            'Gestión de equipos por departamento',
+            'Edición y eliminación de registros (permisos)',
+            'Sistema de autenticación JWT',
+            'Base de datos persistente (PostgreSQL)'
+        ]
     })
 
 # =================== INICIALIZACIÓN ===================
