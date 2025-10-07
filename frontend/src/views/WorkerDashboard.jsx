@@ -5,6 +5,7 @@ import {
 	formatLocalDateTime,
 	calculateDuration,
 	getCurrentLocalDateTime,
+	getCurrentLocalDate,
 	calculateTotalHours
 } from '../utils/timeUtils';
 
@@ -24,12 +25,29 @@ function WorkerDashboard() {
 		try {
 			const entriesRes = await timeEntriesAPI.getAll();
 			const myEntries = entriesRes.data.time_entries.filter(e => e.user_id === user.id);
+			
+			// Ordenar por fecha y hora de entrada (más reciente primero)
+			myEntries.sort((a, b) => {
+				const dateCompare = new Date(b.check_in) - new Date(a.check_in);
+				return dateCompare;
+			});
+			
 			setTimeEntries(myEntries);
 
-			// Verificar si hay un registro abierto
+			// Verificar si hay UN REGISTRO ABIERTO (sin check_out) de CUALQUIER fecha
 			const open = myEntries.find(e => e.check_out === null);
 			setHasOpenEntry(!!open);
 			setOpenEntry(open || null);
+			
+			if (open) {
+				console.log('📌 Registro abierto encontrado:', {
+					id: open.id,
+					date: open.date,
+					check_in: open.check_in
+				});
+			} else {
+				console.log('✅ No hay registros abiertos');
+			}
 		} catch (error) {
 			console.error('Error cargando datos:', error);
 			alert(error.response?.data?.message || 'Error al cargar datos');
@@ -39,29 +57,30 @@ function WorkerDashboard() {
 
 	const handleCheckIn = async () => {
 		if (hasOpenEntry) {
-			alert('Ya tienes un registro abierto');
+			alert(`Ya tienes un registro abierto desde el ${openEntry.date} a las ${formatLocalDateTime(openEntry.check_in)}. Debes cerrarlo antes de abrir uno nuevo.`);
 			return;
 		}
 
 		try {
 			const now = getCurrentLocalDateTime();
+			const today = getCurrentLocalDate();
 
 			const newEntry = {
 				user_id: user.id,
-				date: now.split('T')[0],
+				date: today,
 				check_in: now,
 				check_out: null,
 				total_hours: null,
 				notes: 'Registro de entrada'
 			};
 
-			console.log('Enviando check-in:', newEntry);
+			console.log('✅ Creando nuevo registro:', newEntry);
 			const response = await timeEntriesAPI.create(newEntry);
-			console.log('Check-in exitoso:', response.data);
+			console.log('✅ Check-in exitoso:', response.data);
 			await loadData();
 		} catch (error) {
-			console.error('Error en check-in:', error);
-			console.error('Error response:', error.response?.data);
+			console.error('❌ Error en check-in:', error);
+			console.error('📄 Error response:', error.response?.data);
 			alert(error.response?.data?.message || 'Error al registrar entrada');
 		}
 	};
@@ -85,13 +104,13 @@ function WorkerDashboard() {
 				notes: openEntry.notes || 'Registro completado'
 			};
 
-			console.log('Enviando check-out:', updatedEntry);
+			console.log('✅ Cerrando registro:', updatedEntry);
 			const response = await timeEntriesAPI.create(updatedEntry);
-			console.log('Check-out exitoso:', response.data);
+			console.log('✅ Check-out exitoso:', response.data);
 			await loadData();
 		} catch (error) {
-			console.error('Error en check-out:', error);
-			console.error('Error response:', error.response?.data);
+			console.error('❌ Error en check-out:', error);
+			console.error('📄 Error response:', error.response?.data);
 			alert(error.response?.data?.message || 'Error al registrar salida');
 		}
 	};
@@ -166,6 +185,9 @@ function WorkerDashboard() {
 										✅ Tienes una jornada activa
 									</p>
 									<p className="text-green-200 text-sm">
+										Fecha: {openEntry.date}
+									</p>
+									<p className="text-green-200 text-sm">
 										Entrada: {formatLocalDateTime(openEntry.check_in)}
 									</p>
 									<p className="text-green-200 text-sm font-bold mt-2">
@@ -191,7 +213,7 @@ function WorkerDashboard() {
 								<div className="text-4xl font-bold text-blue-400 mb-2">
 									{timeEntries.filter(e => e.check_out !== null).length}
 								</div>
-								<div className="text-gray-300">Días Completados</div>
+								<div className="text-gray-300">Registros Completados</div>
 							</div>
 						</div>
 						<div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
@@ -229,11 +251,12 @@ function WorkerDashboard() {
 											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Entrada</th>
 											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Salida</th>
 											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Duración</th>
+											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Estado</th>
 										</tr>
 									</thead>
 									<tbody>
 										{timeEntries.map((entry) => (
-											<tr key={entry.id} className="border-b border-gray-700 hover:bg-gray-700/30">
+											<tr key={entry.id} className={`border-b border-gray-700 hover:bg-gray-700/30 ${entry.check_out === null ? 'bg-green-900/20' : ''}`}>
 												<td className="py-3 px-4">{entry.date}</td>
 												<td className="py-3 px-4">{formatLocalDateTime(entry.check_in)}</td>
 												<td className="py-3 px-4">
@@ -245,6 +268,17 @@ function WorkerDashboard() {
 												</td>
 												<td className="py-3 px-4 font-bold text-green-400">
 													{calculateDuration(entry.check_in, entry.check_out)}
+												</td>
+												<td className="py-3 px-4">
+													{entry.check_out === null ? (
+														<span className="px-3 py-1 bg-green-600 text-green-100 rounded-full text-xs font-bold">
+															ACTIVO
+														</span>
+													) : (
+														<span className="px-3 py-1 bg-gray-600 text-gray-200 rounded-full text-xs font-bold">
+															CERRADO
+														</span>
+													)}
 												</td>
 											</tr>
 										))}

@@ -5,6 +5,7 @@ import {
 	formatLocalDateTime,
 	calculateDuration,
 	getCurrentLocalDateTime,
+	getCurrentLocalDate,
 	calculateTotalHours,
 	formatForDateTimeInput,
 	dateTimeInputToISO
@@ -39,11 +40,21 @@ function ManagerDashboard() {
 			setUsers(usersRes.data.users);
 			setTimeEntries(entriesRes.data.time_entries);
 
-			// Verificar si el manager tiene un registro abierto
+			// Verificar si el manager tiene UN registro abierto (de cualquier fecha)
 			const myEntries = entriesRes.data.time_entries.filter(e => e.user_id === user.id);
 			const open = myEntries.find(e => e.check_out === null);
 			setHasOpenEntry(!!open);
 			setOpenEntry(open || null);
+			
+			if (open) {
+				console.log('📌 Registro abierto encontrado:', {
+					id: open.id,
+					date: open.date,
+					check_in: open.check_in
+				});
+			} else {
+				console.log('✅ No hay registros abiertos');
+			}
 		} catch (error) {
 			console.error('Error cargando datos:', error);
 		}
@@ -52,24 +63,26 @@ function ManagerDashboard() {
 
 	const handleCheckIn = async () => {
 		if (hasOpenEntry) {
-			alert('Ya tienes un registro abierto');
+			alert(`Ya tienes un registro abierto desde el ${openEntry.date} a las ${formatLocalDateTime(openEntry.check_in)}. Debes cerrarlo antes de abrir uno nuevo.`);
 			return;
 		}
 
 		try {
 			const now = getCurrentLocalDateTime();
+			const today = getCurrentLocalDate();
+			
 			const response = await timeEntriesAPI.create({
 				user_id: user.id,
-				date: now.split('T')[0],
+				date: today,
 				check_in: now,
 				check_out: null,
 				notes: 'Manager check-in'
 			});
-			console.log('Check-in exitoso:', response.data);
+			console.log('✅ Check-in exitoso:', response.data);
 			await loadData();
 		} catch (error) {
-			console.error('Error en check-in:', error);
-			console.error('Error response:', error.response?.data);
+			console.error('❌ Error en check-in:', error);
+			console.error('📄 Error response:', error.response?.data);
 			alert(error.response?.data?.message || 'Error al registrar entrada');
 		}
 	};
@@ -92,11 +105,11 @@ function ManagerDashboard() {
 				total_hours: totalHours,
 				notes: openEntry.notes
 			});
-			console.log('Check-out exitoso:', response.data);
+			console.log('✅ Check-out exitoso:', response.data);
 			await loadData();
 		} catch (error) {
-			console.error('Error en check-out:', error);
-			console.error('Error response:', error.response?.data);
+			console.error('❌ Error en check-out:', error);
+			console.error('📄 Error response:', error.response?.data);
 			alert(error.response?.data?.message || 'Error al registrar salida');
 		}
 	};
@@ -162,16 +175,18 @@ function ManagerDashboard() {
 		);
 	}
 
-	// CAMBIADO: Manager ve todos los usuarios de su departamento (incluyendo él mismo)
+	// Manager ve todos los usuarios de su departamento (incluyendo él mismo)
 	const departmentUsers = users.filter(u => u.department === user.department);
 	const departmentWorkers = users.filter(u => u.department === user.department && u.role === 'worker');
 	
-	// CAMBIADO: Mostrar todos los registros del departamento (incluyendo los del manager)
+	// Mostrar todos los registros del departamento (incluyendo los del manager)
 	const allDepartmentEntries = timeEntries.filter(e => 
 		departmentUsers.some(u => u.id === e.user_id)
-	);
+	).sort((a, b) => new Date(b.check_in) - new Date(a.check_in));
 	
-	const myEntries = timeEntries.filter(e => e.user_id === user.id);
+	const myEntries = timeEntries
+		.filter(e => e.user_id === user.id)
+		.sort((a, b) => new Date(b.check_in) - new Date(a.check_in));
 
 	return (
 		<div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
@@ -233,7 +248,12 @@ function ManagerDashboard() {
 							{hasOpenEntry && openEntry && (
 								<div className="mt-6 text-center">
 									<div className="bg-green-900/50 border border-green-600 rounded-lg p-4 inline-block">
-										<p className="text-green-300">Jornada activa desde: {formatLocalDateTime(openEntry.check_in)}</p>
+										<p className="text-green-300 mb-2">✅ Tienes una jornada activa</p>
+										<p className="text-green-200 text-sm">Fecha: {openEntry.date}</p>
+										<p className="text-green-200 text-sm">Entrada: {formatLocalDateTime(openEntry.check_in)}</p>
+										<p className="text-green-200 text-sm font-bold mt-2">
+											Tiempo transcurrido: {calculateDuration(openEntry.check_in, null)}
+										</p>
 									</div>
 								</div>
 							)}
@@ -249,17 +269,29 @@ function ManagerDashboard() {
 											<th className="text-left py-3 px-4 text-gray-400">Entrada</th>
 											<th className="text-left py-3 px-4 text-gray-400">Salida</th>
 											<th className="text-left py-3 px-4 text-gray-400">Duración</th>
+											<th className="text-left py-3 px-4 text-gray-400">Estado</th>
 										</tr>
 									</thead>
 									<tbody>
 										{myEntries.map((entry) => (
-											<tr key={entry.id} className="border-b border-gray-700">
+											<tr key={entry.id} className={`border-b border-gray-700 ${entry.check_out === null ? 'bg-green-900/20' : ''}`}>
 												<td className="py-3 px-4">{entry.date}</td>
 												<td className="py-3 px-4">{formatLocalDateTime(entry.check_in)}</td>
 												<td className="py-3 px-4">
 													{entry.check_out ? formatLocalDateTime(entry.check_out) : <span className="text-green-400">En curso</span>}
 												</td>
 												<td className="py-3 px-4 font-bold">{calculateDuration(entry.check_in, entry.check_out)}</td>
+												<td className="py-3 px-4">
+													{entry.check_out === null ? (
+														<span className="px-3 py-1 bg-green-600 text-green-100 rounded-full text-xs font-bold">
+															ACTIVO
+														</span>
+													) : (
+														<span className="px-3 py-1 bg-gray-600 text-gray-200 rounded-full text-xs font-bold">
+															CERRADO
+														</span>
+													)}
+												</td>
 											</tr>
 										))}
 									</tbody>
@@ -327,6 +359,7 @@ function ManagerDashboard() {
 										<th className="text-left py-3 px-4 text-gray-400">Entrada</th>
 										<th className="text-left py-3 px-4 text-gray-400">Salida</th>
 										<th className="text-left py-3 px-4 text-gray-400">Duración</th>
+										<th className="text-left py-3 px-4 text-gray-400">Estado</th>
 										<th className="text-left py-3 px-4 text-gray-400">Acciones</th>
 									</tr>
 								</thead>
@@ -337,7 +370,7 @@ function ManagerDashboard() {
 										const isOwnRecord = entry.user_id === user.id;
 
 										return (
-											<tr key={entry.id} className="border-b border-gray-700 hover:bg-gray-700/30">
+											<tr key={entry.id} className={`border-b border-gray-700 hover:bg-gray-700/30 ${entry.check_out === null ? 'bg-green-900/20' : ''}`}>
 												<td className="py-3 px-4">
 													<span className="font-semibold">{entryUser?.name || 'Desconocido'}</span>
 													{isOwnRecord && (
@@ -380,6 +413,17 @@ function ManagerDashboard() {
 												</td>
 												<td className="py-3 px-4 font-bold text-green-400">
 													{calculateDuration(entry.check_in, entry.check_out)}
+												</td>
+												<td className="py-3 px-4">
+													{entry.check_out === null ? (
+														<span className="px-3 py-1 bg-green-600 text-green-100 rounded-full text-xs font-bold">
+															ACTIVO
+														</span>
+													) : (
+														<span className="px-3 py-1 bg-gray-600 text-gray-200 rounded-full text-xs font-bold">
+															CERRADO
+														</span>
+													)}
 												</td>
 												<td className="py-3 px-4">
 													{isOwnRecord ? (

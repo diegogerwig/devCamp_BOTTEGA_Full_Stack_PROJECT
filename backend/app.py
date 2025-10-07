@@ -533,7 +533,6 @@ def get_time_entries():
             if user_role == 'admin':
                 entries = TimeEntry.query.order_by(TimeEntry.date.desc()).all()
             elif user_role == 'manager':
-                # Manager ve sus registros + registros de workers de su departamento
                 dept_users = User.query.filter_by(department=user_dept).all()
                 user_ids = [u.id for u in dept_users]
                 entries = TimeEntry.query.filter(TimeEntry.user_id.in_(user_ids)).order_by(TimeEntry.date.desc()).all()
@@ -552,7 +551,6 @@ def get_time_entries():
     if user_role == 'admin':
         filtered_entries = MOCK_TIME_ENTRIES
     elif user_role == 'manager':
-        # Manager ve sus registros + registros de workers de su departamento
         dept_users = [u['id'] for u in MOCK_USERS if u['department'] == user_dept]
         filtered_entries = [e for e in MOCK_TIME_ENTRIES if e['user_id'] in dept_users]
     else:
@@ -572,6 +570,8 @@ def create_time_entry():
     user_id = int(get_jwt_identity())
     data = request.get_json()
     
+    print(f"📥 Recibiendo time entry: {data}")
+    
     if 'date' not in data or 'check_in' not in data:
         return jsonify({'message': 'Fecha y hora de entrada son requeridos'}), 400
     
@@ -583,32 +583,61 @@ def create_time_entry():
     
     if db:
         try:
-            entry_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
-            check_in = datetime.fromisoformat(data['check_in'].replace('Z', '+00:00'))
-            check_out = None
-            if data.get('check_out'):
-                check_out = datetime.fromisoformat(data['check_out'].replace('Z', '+00:00'))
+            # Parsear las fechas usando la función auxiliar
+            entry_date_str = data['date']
+            if isinstance(entry_date_str, str):
+                entry_date = datetime.strptime(entry_date_str, '%Y-%m-%d').date()
+            else:
+                entry_date = entry_date_str
             
-            # Buscar registro existente
+            check_in = parse_datetime_string(data['check_in'])
+            check_out = parse_datetime_string(data.get('check_out')) if data.get('check_out') else None
+            
+            print(f"📅 Fecha procesada: {entry_date}")
+            print(f"⏰ Check-in procesado: {check_in}")
+            print(f"⏰ Check-out procesado: {check_out}")
+            
+            if not check_in:
+                return jsonify({'message': 'Formato de fecha/hora de entrada inválido'}), 400
+            
+            # 🔒 VALIDACIÓN CRÍTICA: Verificar si el usuario tiene un registro abierto
+            if not check_out:  # Solo validar cuando se está abriendo un nuevo registro
+                open_entry = TimeEntry.query.filter_by(
+                    user_id=target_user_id,
+                    check_out=None
+                ).first()
+                
+                if open_entry:
+                    print(f"⚠️ Usuario {target_user_id} ya tiene un registro abierto (ID: {open_entry.id}, Fecha: {open_entry.date})")
+                    return jsonify({
+                        'message': f'Ya existe un registro abierto desde el {open_entry.date}. Debes cerrarlo antes de abrir uno nuevo.',
+                        'open_entry': open_entry.to_dict()
+                    }), 400
+            
+            # Buscar registro existente en la misma fecha
             existing = TimeEntry.query.filter_by(
                 user_id=target_user_id,
                 date=entry_date
             ).first()
             
             if existing:
-                # Actualizar
+                # Actualizar registro existente
+                print(f"📝 Actualizando registro existente (ID: {existing.id})")
                 existing.check_in = check_in
                 existing.check_out = check_out
                 existing.total_hours = data.get('total_hours')
                 existing.notes = data.get('notes')
                 db.session.commit()
                 
+                print(f"✅ Registro actualizado: {existing.to_dict()}")
+                
                 return jsonify({
                     'message': 'Registro actualizado',
                     'time_entry': existing.to_dict()
                 }), 200
             else:
-                # Crear nuevo
+                # Crear nuevo registro
+                print(f"➕ Creando nuevo registro para usuario {target_user_id}")
                 new_entry = TimeEntry(
                     user_id=target_user_id,
                     date=entry_date,
@@ -621,6 +650,8 @@ def create_time_entry():
                 db.session.add(new_entry)
                 db.session.commit()
                 
+                print(f"✅ Registro creado: {new_entry.to_dict()}")
+                
                 return jsonify({
                     'message': 'Registro creado',
                     'time_entry': new_entry.to_dict()
@@ -628,12 +659,21 @@ def create_time_entry():
                 
         except Exception as e:
             db.session.rollback()
-            print(f"Error in time entry: {e}")
+            print(f"❌ Error in time entry: {e}")
             import traceback
             traceback.print_exc()
             return jsonify({'message': f'Error: {str(e)}'}), 500
     
-    # Mock fallback
+    # Mock fallback con validación de registro abierto
+    if not data.get('check_out'):  # Solo validar cuando se está abriendo un nuevo registro
+        open_entry = next((e for e in MOCK_TIME_ENTRIES if e['user_id'] == target_user_id and e['check_out'] is None), None)
+        if open_entry:
+            print(f"⚠️ Usuario {target_user_id} ya tiene un registro abierto (mock)")
+            return jsonify({
+                'message': f'Ya existe un registro abierto desde el {open_entry["date"]}. Debes cerrarlo antes de abrir uno nuevo.',
+                'open_entry': open_entry
+            }), 400
+    
     existing_index = None
     for i, entry in enumerate(MOCK_TIME_ENTRIES):
         if entry['user_id'] == target_user_id and entry['date'] == data['date']:
@@ -677,6 +717,8 @@ def update_time_entry(entry_id):
     user_id = int(get_jwt_identity())
     data = request.get_json()
     
+    print(f"📝 Actualizando entry {entry_id}: {data}")
+    
     if db:
         try:
             entry = TimeEntry.query.get(entry_id)
@@ -692,17 +734,19 @@ def update_time_entry(entry_id):
                 if entry_owner.department != user_dept:
                     return jsonify({'message': 'No tienes permiso'}), 403
             
-            # Actualizar
+            # Actualizar con parsing correcto de fechas
             if 'check_in' in data:
-                entry.check_in = datetime.fromisoformat(data['check_in'].replace('Z', '+00:00'))
+                entry.check_in = parse_datetime_string(data['check_in'])
             if 'check_out' in data:
-                entry.check_out = datetime.fromisoformat(data['check_out'].replace('Z', '+00:00')) if data['check_out'] else None
+                entry.check_out = parse_datetime_string(data['check_out']) if data['check_out'] else None
             if 'total_hours' in data:
                 entry.total_hours = data['total_hours']
             if 'notes' in data:
                 entry.notes = data['notes']
             
             db.session.commit()
+            
+            print(f"✅ Entry actualizado: {entry.to_dict()}")
             
             return jsonify({
                 'message': 'Registro actualizado',
@@ -711,6 +755,9 @@ def update_time_entry(entry_id):
             
         except Exception as e:
             db.session.rollback()
+            print(f"❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'message': f'Error: {str(e)}'}), 500
     
     # Mock fallback
@@ -786,48 +833,6 @@ def delete_time_entry(entry_id):
     
     MOCK_TIME_ENTRIES.remove(entry)
     return jsonify({'message': 'Registro eliminado (mock)'}), 200
-
-@app.route('/api/status')
-def get_status():
-    user_count = entry_count = 0
-    
-    if db:
-        try:
-            db.session.execute(db.text('SELECT 1'))
-            user_count = User.query.count()
-            entry_count = TimeEntry.query.count()
-            db_status = f'✅ {DATABASE_TYPE} Connected'
-        except Exception as e:
-            user_count = len(MOCK_USERS)
-            entry_count = len(MOCK_TIME_ENTRIES)
-            db_status = f'⚠️ Using mock data'
-    else:
-        user_count = len(MOCK_USERS)
-        entry_count = len(MOCK_TIME_ENTRIES)
-        db_status = '⚠️ Using mock data'
-    
-    return jsonify({
-        'backend': '✅ Online',
-        'database': db_status,
-        'statistics': {
-            'users': user_count,
-            'time_entries': entry_count,
-            'absences': 0
-        },
-        'database_type': DATABASE_TYPE,
-        'persistent': IS_PERSISTENT,
-        'features': [
-            'Gestión de usuarios con roles (Admin, Manager, Worker)',
-            'Registro de jornadas laborales con entrada/salida',
-            'Control de permisos por roles',
-            'Dashboard personalizado por rol',
-            'Gestión de equipos por departamento',
-            'Edición y eliminación de registros (permisos)',
-            'Edición de usuarios por Admin',
-            'Sistema de autenticación JWT',
-            'Base de datos persistente (PostgreSQL)'
-        ]
-    })
 
 # =================== INICIALIZACIÓN ===================
 def init_database():

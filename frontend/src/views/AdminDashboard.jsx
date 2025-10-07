@@ -52,7 +52,13 @@ function AdminDashboard() {
 			]);
 
 			setUsers(usersRes.data.users);
-			setTimeEntries(entriesRes.data.time_entries);
+			
+			// Ordenar registros por fecha de entrada (más reciente primero)
+			const sortedEntries = entriesRes.data.time_entries.sort((a, b) => {
+				return new Date(b.check_in) - new Date(a.check_in);
+			});
+			setTimeEntries(sortedEntries);
+			
 			setStatus(statusRes.data);
 		} catch (error) {
 			console.error('Error cargando datos:', error);
@@ -139,7 +145,7 @@ function AdminDashboard() {
 		setEditingUser(u.id);
 		setEditUserName(u.name);
 		setEditUserEmail(u.email);
-		setEditUserPassword(''); // Dejar vacío, solo se actualiza si se proporciona
+		setEditUserPassword('');
 		setEditUserRole(u.role);
 		setEditUserDepartment(u.department);
 	};
@@ -153,7 +159,6 @@ function AdminDashboard() {
 				department: editUserDepartment
 			};
 
-			// Solo incluir password si se proporciona
 			if (editUserPassword) {
 				updateData.password = editUserPassword;
 			}
@@ -255,10 +260,6 @@ function AdminDashboard() {
 								<div className="text-4xl font-bold text-green-400 mb-2">{status.statistics.time_entries}</div>
 								<div className="text-gray-300">Registros de Tiempo</div>
 							</div>
-							{/* <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 text-center">
-								<div className="text-4xl font-bold text-purple-400 mb-2">{status.statistics.absences}</div>
-								<div className="text-gray-300">Ausencias</div>
-							</div> */}
 						</div>
 
 						<div className="bg-gray-800 border border-gray-700 rounded-xl p-8">
@@ -466,6 +467,7 @@ function AdminDashboard() {
 										<th className="text-left py-3 px-4 text-gray-400">Entrada</th>
 										<th className="text-left py-3 px-4 text-gray-400">Salida</th>
 										<th className="text-left py-3 px-4 text-gray-400">Duración</th>
+										<th className="text-left py-3 px-4 text-gray-400">Estado</th>
 										<th className="text-left py-3 px-4 text-gray-400">Acciones</th>
 									</tr>
 								</thead>
@@ -475,7 +477,7 @@ function AdminDashboard() {
 										const isEditing = editingEntry === entry.id;
 
 										return (
-											<tr key={entry.id} className="border-b border-gray-700 hover:bg-gray-700/30">
+											<tr key={entry.id} className={`border-b border-gray-700 hover:bg-gray-700/30 ${entry.check_out === null ? 'bg-green-900/20' : ''}`}>
 												<td className="py-3 px-4 font-semibold">{entryUser?.name || 'Desconocido'}</td>
 												<td className="py-3 px-4">
 													<span className={`px-2 py-1 rounded-full text-xs font-bold ${getRoleBadgeColor(entryUser?.role)}`}>
@@ -511,6 +513,17 @@ function AdminDashboard() {
 												</td>
 												<td className="py-3 px-4 font-bold text-green-400">
 													{calculateDuration(entry.check_in, entry.check_out)}
+												</td>
+												<td className="py-3 px-4">
+													{entry.check_out === null ? (
+														<span className="px-3 py-1 bg-green-600 text-green-100 rounded-full text-xs font-bold">
+															ACTIVO
+														</span>
+													) : (
+														<span className="px-3 py-1 bg-gray-600 text-gray-200 rounded-full text-xs font-bold">
+															CERRADO
+														</span>
+													)}
 												</td>
 												<td className="py-3 px-4">
 													{isEditing ? (

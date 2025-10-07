@@ -4,15 +4,15 @@
  * @returns {string} - Fecha formateada en hora local
  */
 export const formatLocalDateTime = (isoString) => {
-  if (!isoString) return 'N/A';
-  
+  if (!isoString) return "N/A";
+
   const date = new Date(isoString);
-  return date.toLocaleString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+  return date.toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
 
@@ -22,12 +22,12 @@ export const formatLocalDateTime = (isoString) => {
  * @returns {string} - Hora formateada
  */
 export const formatLocalTime = (isoString) => {
-  if (!isoString) return 'N/A';
-  
+  if (!isoString) return "N/A";
+
   const date = new Date(isoString);
-  return date.toLocaleTimeString('es-ES', {
-    hour: '2-digit',
-    minute: '2-digit'
+  return date.toLocaleTimeString("es-ES", {
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
 
@@ -38,15 +38,15 @@ export const formatLocalTime = (isoString) => {
  * @returns {string} - Duración en formato "Xh Ym"
  */
 export const calculateDuration = (checkIn, checkOut) => {
-  if (!checkIn) return '0h 0m';
-  
+  if (!checkIn) return "0h 0m";
+
   const start = new Date(checkIn);
   const end = checkOut ? new Date(checkOut) : new Date();
-  
+
   const diffMs = end - start;
   const hours = Math.floor(diffMs / (1000 * 60 * 60));
   const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  
+
   return `${hours}h ${minutes}m`;
 };
 
@@ -58,20 +58,39 @@ export const calculateDuration = (checkIn, checkOut) => {
  */
 export const calculateTotalHours = (checkIn, checkOut) => {
   if (!checkIn || !checkOut) return 0;
-  
+
   const start = new Date(checkIn);
   const end = new Date(checkOut);
-  
+
   const diffMs = end - start;
   return (diffMs / (1000 * 60 * 60)).toFixed(2);
 };
 
 /**
- * Obtiene la fecha y hora actual del sistema del usuario en formato ISO
- * @returns {string} - Fecha actual en formato ISO
+ * NUEVA FUNCIÓN: Obtiene la fecha y hora actual en hora local en formato compatible con backend
+ * Retorna en formato ISO pero preservando la zona horaria local
+ * @returns {string} - Fecha actual en formato ISO con zona horaria
  */
 export const getCurrentLocalDateTime = () => {
-  return new Date().toISOString();
+  const now = new Date();
+  // Obtener el offset de la zona horaria en minutos
+  const timezoneOffset = now.getTimezoneOffset();
+  // Ajustar la fecha para obtener la hora local
+  const localDate = new Date(now.getTime() - timezoneOffset * 60 * 1000);
+  // Retornar en formato ISO pero sin la Z (que indica UTC)
+  return localDate.toISOString().slice(0, -1);
+};
+
+/**
+ * NUEVA FUNCIÓN: Obtiene solo la fecha actual en formato YYYY-MM-DD
+ * @returns {string} - Fecha en formato YYYY-MM-DD
+ */
+export const getCurrentLocalDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 /**
@@ -80,24 +99,26 @@ export const getCurrentLocalDateTime = () => {
  * @returns {string} - Fecha formateada para input datetime-local
  */
 export const formatForDateTimeInput = (isoString) => {
-  if (!isoString) return '';
-  
+  if (!isoString) return "";
+
   const date = new Date(isoString);
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
 /**
- * Convierte un valor de input datetime-local a formato ISO
+ * MODIFICADA: Convierte un valor de input datetime-local a formato ISO sin conversión UTC
  * @param {string} dateTimeLocalValue - Valor del input datetime-local
- * @returns {string} - Fecha en formato ISO
+ * @returns {string} - Fecha en formato ISO sin conversión a UTC
  */
 export const dateTimeInputToISO = (dateTimeLocalValue) => {
   if (!dateTimeLocalValue) return null;
-  return new Date(dateTimeLocalValue).toISOString();
+  // No usar new Date().toISOString() porque convierte a UTC
+  // En su lugar, simplemente añadir segundos y milisegundos
+  return dateTimeLocalValue + ":00.000";
 };
