@@ -75,7 +75,8 @@ if db:
         id = db.Column(db.Integer, primary_key=True)
         name = db.Column(db.String(100), nullable=False)
         email = db.Column(db.String(120), unique=True, nullable=False)
-        users_password = db.Column('users_password', db.String(255), nullable=False)
+        # La columna en la DB se llama 'password', pero la usamos como 'users_password' en Python
+        users_password = db.Column('password', db.String(255), nullable=False)
         role = db.Column(db.String(20), nullable=False, default='worker')
         department = db.Column(db.String(50), nullable=False)
         status = db.Column(db.String(20), nullable=False, default='active')
