@@ -88,33 +88,42 @@ if db is None:
 
 # =================== FUNCIONES AUXILIARES PARA FECHAS ===================
 def parse_datetime_string(datetime_str):
-    """Parsea una fecha/hora que viene del frontend en hora local"""
+    """
+    Parsea una fecha/hora que viene del frontend en hora local.
+    El frontend envía: '2025-10-07T14:30:00.000'
+    Lo parseamos como naive datetime (sin timezone info) para preservar la hora local
+    """
     if not datetime_str:
         return None
     
     try:
+        # Remover la Z si existe (indica UTC, pero nosotros queremos hora local)
         if datetime_str.endswith('Z'):
             datetime_str = datetime_str[:-1]
         
+        # Parsear el datetime sin conversión de zona horaria
         if '.' in datetime_str:
-            return datetime.fromisoformat(datetime_str)
+            # Formato: 2025-10-07T14:30:00.000
+            return datetime.strptime(datetime_str, '%Y-%m-%dT%H:%M:%S.%f')
         else:
-            return datetime.fromisoformat(datetime_str)
+            # Formato: 2025-10-07T14:30:00
+            return datetime.strptime(datetime_str, '%Y-%m-%dT%H:%M:%S')
     except Exception as e:
         print(f"⚠️ Error parseando fecha '{datetime_str}': {e}")
-        try:
-            return datetime.strptime(datetime_str, '%Y-%m-%dT%H:%M:%S')
-        except:
-            return None
+        return None
 
 def datetime_to_string(dt):
-    """Convierte un objeto datetime a string en formato ISO sin conversión de zona horaria"""
+    """
+    Convierte un objeto datetime a string en formato ISO sin conversión de zona horaria.
+    Retorna: '2025-10-07T14:30:00.000'
+    """
     if not dt:
         return None
     
     if isinstance(dt, str):
         return dt
     
+    # Formatear sin la Z (que indicaría UTC)
     return dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
 
 # =================== MODELOS ===================
@@ -129,7 +138,7 @@ if db:
         role = db.Column(db.String(20), nullable=False, default='worker')
         department = db.Column(db.String(50), nullable=False)
         status = db.Column(db.String(20), nullable=False, default='active')
-        created_at = db.Column(db.DateTime, default=datetime.utcnow)
+        created_at = db.Column(db.DateTime, default=datetime.now)  # ✅ CAMBIADO: datetime.now en lugar de utcnow
         
         def to_dict(self):
             return {
@@ -152,7 +161,7 @@ if db:
         check_out = db.Column(db.DateTime, nullable=True)
         total_hours = db.Column(db.Float, nullable=True)
         notes = db.Column(db.Text, nullable=True)
-        created_at = db.Column(db.DateTime, default=datetime.utcnow)
+        created_at = db.Column(db.DateTime, default=datetime.now)  # ✅ CAMBIADO: datetime.now en lugar de utcnow
         
         def to_dict(self):
             return {
@@ -446,7 +455,7 @@ def create_user():
             'role': new_user_role,
             'department': data['department'],
             'status': 'active',
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now().isoformat()
         }
         MOCK_USERS.append(new_user)
         
@@ -585,13 +594,13 @@ def get_time_entries():
     if db:
         try:
             if user_role == 'admin':
-                entries = TimeEntry.query.order_by(TimeEntry.date.desc()).all()
+                entries = TimeEntry.query.order_by(TimeEntry.check_in.desc()).all()
             elif user_role == 'manager':
                 dept_users = User.query.filter_by(department=user_dept).all()
                 user_ids = [u.id for u in dept_users]
-                entries = TimeEntry.query.filter(TimeEntry.user_id.in_(user_ids)).order_by(TimeEntry.date.desc()).all()
+                entries = TimeEntry.query.filter(TimeEntry.user_id.in_(user_ids)).order_by(TimeEntry.check_in.desc()).all()
             else:
-                entries = TimeEntry.query.filter_by(user_id=user_id).order_by(TimeEntry.date.desc()).all()
+                entries = TimeEntry.query.filter_by(user_id=user_id).order_by(TimeEntry.check_in.desc()).all()
             
             return jsonify({
                 'time_entries': [entry.to_dict() for entry in entries],
@@ -660,11 +669,19 @@ def create_time_entry():
                         'open_entry': open_entry.to_dict()
                     }), 400
             
-            # Buscar registro existente en la misma fecha
-            existing = TimeEntry.query.filter_by(
-                user_id=target_user_id,
-                date=entry_date
-            ).first()
+            # ✅ MODIFICADO: Buscar registro por ID exacto para actualización
+            # O buscar registro abierto en la misma fecha para actualización
+            existing = None
+            if 'entry_id' in data:
+                # Si viene un entry_id, actualizar ese registro específico
+                existing = TimeEntry.query.get(data['entry_id'])
+            else:
+                # Si no hay entry_id, buscar registro abierto en la misma fecha
+                existing = TimeEntry.query.filter_by(
+                    user_id=target_user_id,
+                    date=entry_date,
+                    check_out=None
+                ).first()
             
             if existing:
                 # Actualizar registro existente
@@ -679,7 +696,7 @@ def create_time_entry():
                     'time_entry': existing.to_dict()
                 }), 200
             else:
-                # Crear nuevo registro
+                # ✅ MODIFICADO: Siempre crear nuevo registro (no buscar por fecha)
                 new_entry = TimeEntry(
                     user_id=target_user_id,
                     date=entry_date,
@@ -703,7 +720,7 @@ def create_time_entry():
             import traceback
             traceback.print_exc()
             return jsonify({'message': f'Error: {str(e)}'}), 500
-    
+   
     # Mock fallback con validación de registro abierto
     if not data.get('check_out'):
         open_entry = next((e for e in MOCK_TIME_ENTRIES if e['user_id'] == target_user_id and e['check_out'] is None), None)
