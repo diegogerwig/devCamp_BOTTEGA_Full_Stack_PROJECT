@@ -8,9 +8,27 @@ function Login() {
 	const [loading, setLoading] = useState(false);
 	const { login } = useAuth();
 
+	// Función para validar formato de email
+	const isValidEmail = (email) => {
+		// Regex: debe tener texto antes de @, una sola @, texto después de @, un punto, y texto después del punto
+		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		
+		// Verificar que solo tenga una @
+		const atCount = (email.match(/@/g) || []).length;
+		
+		return emailRegex.test(email) && atCount === 1;
+	};
+
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		setError('');
+
+		// Validar formato de email
+		if (!isValidEmail(email)) {
+			setError('Por favor, introduce un email válido (ejemplo@dominio.com)');
+			return;
+		}
+
 		setLoading(true);
 
 		console.log('🔐 Intentando login con:', email);
@@ -54,6 +72,7 @@ function Login() {
 	const fillCredentials = (demoEmail, demoPassword) => {
 		setEmail(demoEmail);
 		setPassword(demoPassword);
+		setError(''); // Limpiar errores al autocompletar
 	};
 
 	return (
@@ -85,7 +104,10 @@ function Login() {
 							<input
 								type="email"
 								value={email}
-								onChange={(e) => setEmail(e.target.value)}
+								onChange={(e) => {
+									setEmail(e.target.value);
+									setError(''); // Limpiar error al escribir
+								}}
 								className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 								placeholder="tu@email.com"
 								required
@@ -99,7 +121,10 @@ function Login() {
 							<input
 								type="password"
 								value={password}
-								onChange={(e) => setPassword(e.target.value)}
+								onChange={(e) => {
+									setPassword(e.target.value);
+									setError(''); // Limpiar error al escribir
+								}}
 								className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 								placeholder="••••••••"
 								required

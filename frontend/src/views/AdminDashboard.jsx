@@ -29,6 +29,7 @@ function AdminDashboard() {
 	const [newUserPassword, setNewUserPassword] = useState('');
 	const [newUserRole, setNewUserRole] = useState('worker');
 	const [newUserDepartment, setNewUserDepartment] = useState('');
+	const [createUserError, setCreateUserError] = useState('');
 
 	// Estados para editar usuario
 	const [editingUser, setEditingUser] = useState(null);
@@ -37,6 +38,7 @@ function AdminDashboard() {
 	const [editUserPassword, setEditUserPassword] = useState('');
 	const [editUserRole, setEditUserRole] = useState('worker');
 	const [editUserDepartment, setEditUserDepartment] = useState('');
+	const [editUserError, setEditUserError] = useState('');
 
 	useEffect(() => {
 		loadData();
@@ -64,6 +66,17 @@ function AdminDashboard() {
 			console.error('Error cargando datos:', error);
 		}
 		setLoading(false);
+	};
+
+	// Función para validar formato de email
+	const isValidEmail = (email) => {
+		// Regex: debe tener texto antes de @, una sola @, texto después de @, un punto, y texto después del punto
+		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		
+		// Verificar que solo tenga una @
+		const atCount = (email.match(/@/g) || []).length;
+		
+		return emailRegex.test(email) && atCount === 1;
 	};
 
 	// Funciones para edición de registros de tiempo
@@ -113,8 +126,16 @@ function AdminDashboard() {
 
 	// Funciones para usuarios
 	const handleCreateUser = async () => {
+		setCreateUserError('');
+
 		if (!newUserName || !newUserEmail || !newUserPassword || !newUserDepartment) {
-			alert('Completa todos los campos');
+			setCreateUserError('Completa todos los campos');
+			return;
+		}
+
+		// Validar formato de email
+		if (!isValidEmail(newUserEmail)) {
+			setCreateUserError('Por favor, introduce un email válido (ejemplo@dominio.com)');
 			return;
 		}
 
@@ -133,11 +154,12 @@ function AdminDashboard() {
 			setNewUserRole('worker');
 			setNewUserDepartment('');
 			setShowCreateUser(false);
+			setCreateUserError('');
 			await loadData();
 			alert('Usuario creado exitosamente');
 		} catch (error) {
 			console.error('Error creando usuario:', error);
-			alert(error.response?.data?.message || 'Error al crear usuario');
+			setCreateUserError(error.response?.data?.message || 'Error al crear usuario');
 		}
 	};
 
@@ -148,9 +170,18 @@ function AdminDashboard() {
 		setEditUserPassword('');
 		setEditUserRole(u.role);
 		setEditUserDepartment(u.department);
+		setEditUserError('');
 	};
 
 	const saveEditUser = async () => {
+		setEditUserError('');
+
+		// Validar formato de email
+		if (!isValidEmail(editUserEmail)) {
+			setEditUserError('Por favor, introduce un email válido (ejemplo@dominio.com)');
+			return;
+		}
+
 		try {
 			const updateData = {
 				name: editUserName,
@@ -167,11 +198,12 @@ function AdminDashboard() {
 
 			setEditingUser(null);
 			setEditUserPassword('');
+			setEditUserError('');
 			await loadData();
 			alert('Usuario actualizado exitosamente');
 		} catch (error) {
 			console.error('Error actualizando usuario:', error);
-			alert(error.response?.data?.message || 'Error al actualizar usuario');
+			setEditUserError(error.response?.data?.message || 'Error al actualizar usuario');
 		}
 	};
 
@@ -182,6 +214,7 @@ function AdminDashboard() {
 		setEditUserPassword('');
 		setEditUserRole('worker');
 		setEditUserDepartment('');
+		setEditUserError('');
 	};
 
 	const handleDeleteUser = async (userId) => {
@@ -282,7 +315,10 @@ function AdminDashboard() {
 						<div className="flex justify-between items-center mb-6">
 							<h2 className="text-2xl font-bold">Gestión de Usuarios</h2>
 							<button
-								onClick={() => setShowCreateUser(!showCreateUser)}
+								onClick={() => {
+									setShowCreateUser(!showCreateUser);
+									setCreateUserError('');
+								}}
 								className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg font-medium"
 							>
 								➕ Crear Usuario
@@ -293,33 +329,52 @@ function AdminDashboard() {
 						{showCreateUser && (
 							<div className="bg-red-900/30 border border-red-700 rounded-xl p-6 mb-6">
 								<h3 className="text-lg font-bold mb-4">Nuevo Usuario</h3>
+								
+								{createUserError && (
+									<div className="bg-red-900/50 border border-red-600 rounded-lg p-3 mb-4">
+										<p className="text-red-200 text-sm">{createUserError}</p>
+									</div>
+								)}
+
 								<div className="grid grid-cols-2 gap-4 mb-4">
 									<input
 										type="text"
 										placeholder="Nombre"
 										value={newUserName}
-										onChange={(e) => setNewUserName(e.target.value)}
+										onChange={(e) => {
+											setNewUserName(e.target.value);
+											setCreateUserError('');
+										}}
 										className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
 									/>
 									<input
 										type="email"
 										placeholder="Email"
 										value={newUserEmail}
-										onChange={(e) => setNewUserEmail(e.target.value)}
+										onChange={(e) => {
+											setNewUserEmail(e.target.value);
+											setCreateUserError('');
+										}}
 										className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
 									/>
 									<input
 										type="password"
 										placeholder="Contraseña"
 										value={newUserPassword}
-										onChange={(e) => setNewUserPassword(e.target.value)}
+										onChange={(e) => {
+											setNewUserPassword(e.target.value);
+											setCreateUserError('');
+										}}
 										className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
 									/>
 									<input
 										type="text"
 										placeholder="Departamento"
 										value={newUserDepartment}
-										onChange={(e) => setNewUserDepartment(e.target.value)}
+										onChange={(e) => {
+											setNewUserDepartment(e.target.value);
+											setCreateUserError('');
+										}}
 										className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
 									/>
 									<select
@@ -336,7 +391,10 @@ function AdminDashboard() {
 									<button onClick={handleCreateUser} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg">
 										Crear
 									</button>
-									<button onClick={() => setShowCreateUser(false)} className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg">
+									<button onClick={() => {
+										setShowCreateUser(false);
+										setCreateUserError('');
+									}} className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg">
 										Cancelar
 									</button>
 								</div>
@@ -375,12 +433,20 @@ function AdminDashboard() {
 												</td>
 												<td className="py-3 px-4">
 													{isEditing ? (
-														<input
-															type="email"
-															value={editUserEmail}
-															onChange={(e) => setEditUserEmail(e.target.value)}
-															className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white w-full"
-														/>
+														<div>
+															<input
+																type="email"
+																value={editUserEmail}
+																onChange={(e) => {
+																	setEditUserEmail(e.target.value);
+																	setEditUserError('');
+																}}
+																className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white w-full"
+															/>
+															{editUserError && (
+																<p className="text-red-400 text-xs mt-1">{editUserError}</p>
+															)}
+														</div>
 													) : (
 														<span className="text-gray-300">{u.email}</span>
 													)}
