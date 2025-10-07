@@ -196,7 +196,7 @@ function Login() {
 				{/* Footer */}
 				<div className="text-center mt-8">
 					<p className="text-gray-500 text-sm">
-						TimeTracer v2.0 - Proyecto devCAMP BOTTEGA 2025
+						TimeTracer v0.0 - Proyecto devCAMP BOTTEGA 2025
 					</p>
 				</div>
 			</div>

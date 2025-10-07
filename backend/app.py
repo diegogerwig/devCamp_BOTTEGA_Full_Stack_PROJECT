@@ -192,12 +192,330 @@ def favicon():
 
 @app.route('/')
 def home():
+    db_info = {
+        'type': DATABASE_TYPE,
+        'persistent': IS_PERSISTENT,
+        'status': 'disconnected'
+    }
+    
+    if db:
+        try:
+            # Verificar conexión
+            db.session.execute(db.text('SELECT 1'))
+            db_info['status'] = 'connected'
+            
+            # Obtener información de las tablas
+            tables_info = []
+            
+            # Información de la tabla users
+            try:
+                user_count = User.query.count()
+                users_by_role = db.session.execute(
+                    db.text("SELECT role, COUNT(*) as count FROM users GROUP BY role")
+                ).fetchall()
+                
+                tables_info.append({
+                    'name': 'users',
+                    'description': 'Usuarios del sistema',
+                    'total_records': user_count,
+                    'columns': [
+                        {'name': 'id', 'type': 'Integer', 'description': 'ID único'},
+                        {'name': 'name', 'type': 'String(100)', 'description': 'Nombre completo'},
+                        {'name': 'email', 'type': 'String(120)', 'description': 'Email (único)'},
+                        {'name': 'users_password', 'type': 'String(255)', 'description': 'Contraseña hasheada'},
+                        {'name': 'role', 'type': 'String(20)', 'description': 'Rol: admin/manager/worker'},
+                        {'name': 'department', 'type': 'String(50)', 'description': 'Departamento'},
+                        {'name': 'status', 'type': 'String(20)', 'description': 'Estado: active/inactive'},
+                        {'name': 'created_at', 'type': 'DateTime', 'description': 'Fecha de creación'}
+                    ],
+                    'breakdown': [{'role': row[0], 'count': row[1]} for row in users_by_role]
+                })
+            except Exception as e:
+                print(f"Error obteniendo info de users: {e}")
+            
+            # Información de la tabla time_entries
+            try:
+                entry_count = TimeEntry.query.count()
+                open_entries = TimeEntry.query.filter_by(check_out=None).count()
+                closed_entries = entry_count - open_entries
+                
+                # Total de horas registradas
+                total_hours = db.session.execute(
+                    db.text("SELECT COALESCE(SUM(total_hours), 0) FROM time_entries WHERE total_hours IS NOT NULL")
+                ).scalar()
+                
+                tables_info.append({
+                    'name': 'time_entries',
+                    'description': 'Registros de jornadas laborales',
+                    'total_records': entry_count,
+                    'columns': [
+                        {'name': 'id', 'type': 'Integer', 'description': 'ID único'},
+                        {'name': 'user_id', 'type': 'Integer', 'description': 'ID del usuario (FK)'},
+                        {'name': 'date', 'type': 'Date', 'description': 'Fecha del registro'},
+                        {'name': 'check_in', 'type': 'DateTime', 'description': 'Hora de entrada'},
+                        {'name': 'check_out', 'type': 'DateTime', 'description': 'Hora de salida (nullable)'},
+                        {'name': 'total_hours', 'type': 'Float', 'description': 'Total de horas trabajadas'},
+                        {'name': 'notes', 'type': 'Text', 'description': 'Notas adicionales'},
+                        {'name': 'created_at', 'type': 'DateTime', 'description': 'Fecha de creación'}
+                    ],
+                    'stats': {
+                        'open_entries': open_entries,
+                        'closed_entries': closed_entries,
+                        'total_hours_logged': float(total_hours)
+                    }
+                })
+            except Exception as e:
+                print(f"Error obteniendo info de time_entries: {e}")
+            
+            db_info['tables'] = tables_info
+            
+        except Exception as e:
+            print(f"Error obteniendo información de DB: {e}")
+            db_info['error'] = str(e)
+    
     return jsonify({
-        'message': f'🚀 TimeTracer API v2.0 with {DATABASE_TYPE}',
+        'message': f'🚀 TimeTracer API v2.0 - Sistema de Gestión de Jornada Laboral',
         'status': 'success',
         'version': '2.0.0',
-        'database': DATABASE_TYPE,
-        'persistent': IS_PERSISTENT
+        'database': db_info,
+        'endpoints': {
+            'public': {
+                'description': 'Endpoints accesibles sin autenticación',
+                'routes': [
+                    {
+                        'path': '/',
+                        'methods': ['GET'],
+                        'description': 'Información de la API y base de datos',
+                        'auth_required': False
+                    },
+                    {
+                        'path': '/api/status',
+                        'methods': ['GET'],
+                        'description': 'Estado del sistema y estadísticas',
+                        'auth_required': False
+                    },
+                    {
+                        'path': '/api/health',
+                        'methods': ['GET'],
+                        'description': 'Health check del servidor',
+                        'auth_required': False
+                    },
+                    {
+                        'path': '/api/auth/login',
+                        'methods': ['POST'],
+                        'description': 'Iniciar sesión',
+                        'auth_required': False,
+                        'body': {
+                            'email': 'string (required)',
+                            'password': 'string (required)'
+                        },
+                        'response': {
+                            'access_token': 'JWT token',
+                            'user': 'User object'
+                        }
+                    }
+                ]
+            },
+            'authenticated': {
+                'description': 'Endpoints que requieren autenticación (Bearer token)',
+                'routes': [
+                    {
+                        'path': '/api/auth/me',
+                        'methods': ['GET'],
+                        'description': 'Obtener datos del usuario actual',
+                        'auth_required': True,
+                        'roles': ['admin', 'manager', 'worker']
+                    }
+                ]
+            },
+            'users': {
+                'description': 'Gestión de usuarios',
+                'routes': [
+                    {
+                        'path': '/api/users',
+                        'methods': ['GET'],
+                        'description': 'Listar usuarios (filtrados por rol y departamento)',
+                        'auth_required': True,
+                        'roles': ['admin', 'manager', 'worker'],
+                        'notes': 'Admin ve todos, Manager ve su depto, Worker solo se ve a sí mismo'
+                    },
+                    {
+                        'path': '/api/users',
+                        'methods': ['POST'],
+                        'description': 'Crear nuevo usuario',
+                        'auth_required': True,
+                        'roles': ['admin'],
+                        'body': {
+                            'name': 'string (required)',
+                            'email': 'string (required, unique)',
+                            'password': 'string (required)',
+                            'role': 'string (required: admin/manager/worker)',
+                            'department': 'string (required)'
+                        }
+                    },
+                    {
+                        'path': '/api/users/<int:user_id>',
+                        'methods': ['PUT'],
+                        'description': 'Actualizar usuario',
+                        'auth_required': True,
+                        'roles': ['admin'],
+                        'notes': 'No puedes editarte a ti mismo',
+                        'body': {
+                            'name': 'string (optional)',
+                            'email': 'string (optional)',
+                            'password': 'string (optional)',
+                            'role': 'string (optional)',
+                            'department': 'string (optional)',
+                            'status': 'string (optional)'
+                        }
+                    },
+                    {
+                        'path': '/api/users/<int:user_id>',
+                        'methods': ['DELETE'],
+                        'description': 'Eliminar usuario y sus registros',
+                        'auth_required': True,
+                        'roles': ['admin'],
+                        'notes': 'No puedes eliminarte a ti mismo'
+                    }
+                ]
+            },
+            'time_entries': {
+                'description': 'Gestión de registros de jornada laboral',
+                'routes': [
+                    {
+                        'path': '/api/time-entries',
+                        'methods': ['GET'],
+                        'description': 'Listar registros de tiempo',
+                        'auth_required': True,
+                        'roles': ['admin', 'manager', 'worker'],
+                        'notes': 'Admin ve todos, Manager ve su depto, Worker solo ve los suyos'
+                    },
+                    {
+                        'path': '/api/time-entries',
+                        'methods': ['POST'],
+                        'description': 'Crear o actualizar registro de tiempo',
+                        'auth_required': True,
+                        'roles': ['admin', 'manager', 'worker'],
+                        'notes': 'Solo puedes crear registros para ti (excepto Admin/Manager)',
+                        'body': {
+                            'user_id': 'integer (optional, defaults to current user)',
+                            'date': 'string YYYY-MM-DD (required)',
+                            'check_in': 'string ISO datetime (required)',
+                            'check_out': 'string ISO datetime (optional)',
+                            'total_hours': 'float (optional, calculated)',
+                            'notes': 'string (optional)'
+                        },
+                        'validations': [
+                            'Solo puede haber un registro abierto (sin check_out) por usuario',
+                            'Si ya existe un registro para esa fecha y usuario, se actualiza'
+                        ]
+                    },
+                    {
+                        'path': '/api/time-entries/<int:entry_id>',
+                        'methods': ['PUT'],
+                        'description': 'Editar registro de tiempo',
+                        'auth_required': True,
+                        'roles': ['admin', 'manager'],
+                        'notes': 'Manager no puede editar sus propios registros ni los de otros deptos',
+                        'body': {
+                            'check_in': 'string ISO datetime (optional)',
+                            'check_out': 'string ISO datetime (optional)',
+                            'total_hours': 'float (optional)',
+                            'notes': 'string (optional)'
+                        }
+                    },
+                    {
+                        'path': '/api/time-entries/<int:entry_id>',
+                        'methods': ['DELETE'],
+                        'description': 'Eliminar registro de tiempo',
+                        'auth_required': True,
+                        'roles': ['admin', 'manager'],
+                        'notes': 'Manager no puede eliminar sus propios registros ni los de otros deptos'
+                    }
+                ]
+            }
+        },
+        'authentication': {
+            'type': 'JWT Bearer Token',
+            'header': 'Authorization: Bearer <token>',
+            'token_expiration': '24 hours',
+            'how_to_use': [
+                '1. POST /api/auth/login con email y password',
+                '2. Guardar el access_token de la respuesta',
+                '3. Incluir en header: Authorization: Bearer <access_token>',
+                '4. El token expira en 24 horas'
+            ]
+        },
+        'roles_permissions': {
+            'admin': [
+                'Ver todos los usuarios y registros',
+                'Crear, editar y eliminar usuarios',
+                'Editar y eliminar cualquier registro de tiempo',
+                'Acceso completo al sistema'
+            ],
+            'manager': [
+                'Ver usuarios y registros de su departamento',
+                'Editar y eliminar registros de workers de su depto',
+                'NO puede editar/eliminar sus propios registros',
+                'NO puede gestionar usuarios',
+                'Registrar su propia jornada'
+            ],
+            'worker': [
+                'Ver solo sus propios datos',
+                'Registrar su jornada (check-in/check-out)',
+                'Ver historial de sus registros',
+                'NO puede editar ni eliminar registros'
+            ]
+        },
+        'business_rules': [
+            'Solo puede haber UN registro abierto por usuario en cualquier momento',
+            'Se permiten múltiples registros cerrados por día',
+            'Las fechas se manejan en hora local (no UTC)',
+            'Manager no puede modificar sus propios registros',
+            'Admin no puede editar/eliminar su propio usuario',
+            'Worker solo puede crear registros para sí mismo'
+        ],
+        'features': [
+            'Autenticación JWT con tokens de 24h',
+            'Sistema de roles jerárquico: Admin > Manager > Worker',
+            'Gestión completa de usuarios (CRUD) por Admin',
+            'Registro de jornadas con entrada/salida',
+            'Múltiples registros por día permitidos',
+            'Edición y eliminación de registros según permisos',
+            'Validación de registros abiertos (máximo 1 por usuario)',
+            'Manejo de horas en zona horaria local (sin conversión UTC)',
+            'Base de datos PostgreSQL persistente',
+            'Soporte para departamentos y equipos',
+            'Dashboard personalizado por rol',
+            'Validación de formato de email',
+            'Passwords hasheados con bcrypt'
+        ],
+        'tech_stack': {
+            'backend': {
+                'framework': 'Flask 2.3.3',
+                'database': 'PostgreSQL with pg8000',
+                'orm': 'SQLAlchemy',
+                'authentication': 'Flask-JWT-Extended',
+                'password_hashing': 'Flask-Bcrypt',
+                'cors': 'Flask-CORS'
+            },
+            'frontend': {
+                'framework': 'React 19.1.1',
+                'build_tool': 'Vite 7.1.2',
+                'styling': 'Tailwind CSS 4.1.13',
+                'http_client': 'Axios 1.12.1',
+                'routing': 'React Context API'
+            }
+        },
+        'developer_info': {
+            'project_name': 'TimeTracer',
+            'version': '2.0.0',
+            'description': 'Sistema de Gestión de Jornada Laboral',
+            'author': 'Diego Gerwig López',
+            'course': 'devCAMP BOTTEGA 2025',
+            'license': 'MIT',
+            'repository': 'github.com/[tu-usuario]/timetracer'
+        }
     })
 
 @app.route('/api/health')
