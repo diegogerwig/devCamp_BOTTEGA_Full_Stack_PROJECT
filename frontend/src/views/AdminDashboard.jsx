@@ -17,7 +17,7 @@ function AdminDashboard() {
 	const [activeTab, setActiveTab] = useState('dashboard');
 	const [loading, setLoading] = useState(true);
 
-	// Estados para edición
+	// Estados para edición de registros
 	const [editingEntry, setEditingEntry] = useState(null);
 	const [editCheckIn, setEditCheckIn] = useState('');
 	const [editCheckOut, setEditCheckOut] = useState('');
@@ -29,6 +29,14 @@ function AdminDashboard() {
 	const [newUserPassword, setNewUserPassword] = useState('');
 	const [newUserRole, setNewUserRole] = useState('worker');
 	const [newUserDepartment, setNewUserDepartment] = useState('');
+
+	// Estados para editar usuario
+	const [editingUser, setEditingUser] = useState(null);
+	const [editUserName, setEditUserName] = useState('');
+	const [editUserEmail, setEditUserEmail] = useState('');
+	const [editUserPassword, setEditUserPassword] = useState('');
+	const [editUserRole, setEditUserRole] = useState('worker');
+	const [editUserDepartment, setEditUserDepartment] = useState('');
 
 	useEffect(() => {
 		loadData();
@@ -52,13 +60,14 @@ function AdminDashboard() {
 		setLoading(false);
 	};
 
-	const startEdit = (entry) => {
+	// Funciones para edición de registros de tiempo
+	const startEditEntry = (entry) => {
 		setEditingEntry(entry.id);
 		setEditCheckIn(formatForDateTimeInput(entry.check_in));
 		setEditCheckOut(entry.check_out ? formatForDateTimeInput(entry.check_out) : '');
 	};
 
-	const saveEdit = async () => {
+	const saveEditEntry = async () => {
 		try {
 			const checkInISO = dateTimeInputToISO(editCheckIn);
 			const checkOutISO = editCheckOut ? dateTimeInputToISO(editCheckOut) : null;
@@ -78,7 +87,7 @@ function AdminDashboard() {
 		}
 	};
 
-	const cancelEdit = () => {
+	const cancelEditEntry = () => {
 		setEditingEntry(null);
 		setEditCheckIn('');
 		setEditCheckOut('');
@@ -96,6 +105,7 @@ function AdminDashboard() {
 		}
 	};
 
+	// Funciones para usuarios
 	const handleCreateUser = async () => {
 		if (!newUserName || !newUserEmail || !newUserPassword || !newUserDepartment) {
 			alert('Completa todos los campos');
@@ -123,6 +133,50 @@ function AdminDashboard() {
 			console.error('Error creando usuario:', error);
 			alert(error.response?.data?.message || 'Error al crear usuario');
 		}
+	};
+
+	const startEditUser = (u) => {
+		setEditingUser(u.id);
+		setEditUserName(u.name);
+		setEditUserEmail(u.email);
+		setEditUserPassword(''); // Dejar vacío, solo se actualiza si se proporciona
+		setEditUserRole(u.role);
+		setEditUserDepartment(u.department);
+	};
+
+	const saveEditUser = async () => {
+		try {
+			const updateData = {
+				name: editUserName,
+				email: editUserEmail,
+				role: editUserRole,
+				department: editUserDepartment
+			};
+
+			// Solo incluir password si se proporciona
+			if (editUserPassword) {
+				updateData.password = editUserPassword;
+			}
+
+			await usersAPI.update(editingUser, updateData);
+
+			setEditingUser(null);
+			setEditUserPassword('');
+			await loadData();
+			alert('Usuario actualizado exitosamente');
+		} catch (error) {
+			console.error('Error actualizando usuario:', error);
+			alert(error.response?.data?.message || 'Error al actualizar usuario');
+		}
+	};
+
+	const cancelEditUser = () => {
+		setEditingUser(null);
+		setEditUserName('');
+		setEditUserEmail('');
+		setEditUserPassword('');
+		setEditUserRole('worker');
+		setEditUserDepartment('');
 	};
 
 	const handleDeleteUser = async (userId) => {
@@ -234,6 +288,7 @@ function AdminDashboard() {
 							</button>
 						</div>
 
+						{/* Formulario de crear usuario */}
 						{showCreateUser && (
 							<div className="bg-red-900/30 border border-red-700 rounded-xl p-6 mb-6">
 								<h3 className="text-lg font-bold mb-4">Nuevo Usuario</h3>
@@ -287,6 +342,7 @@ function AdminDashboard() {
 							</div>
 						)}
 
+						{/* Tabla de usuarios */}
 						<div className="overflow-x-auto">
 							<table className="w-full">
 								<thead>
@@ -299,26 +355,97 @@ function AdminDashboard() {
 									</tr>
 								</thead>
 								<tbody>
-									{users.filter(u => u.id !== user.id).map((u) => (
-										<tr key={u.id} className="border-b border-gray-700 hover:bg-gray-700/30">
-											<td className="py-3 px-4 font-semibold">{u.name}</td>
-											<td className="py-3 px-4 text-gray-300">{u.email}</td>
-											<td className="py-3 px-4 text-gray-300">{u.department}</td>
-											<td className="py-3 px-4">
-												<span className={`px-3 py-1 rounded-full text-xs font-bold ${getRoleBadgeColor(u.role)}`}>
-													{u.role.toUpperCase()}
-												</span>
-											</td>
-											<td className="py-3 px-4">
-												<button
-													onClick={() => handleDeleteUser(u.id)}
-													className="p-2 text-red-400 hover:bg-red-900/30 rounded"
-												>
-													🗑️
-												</button>
-											</td>
-										</tr>
-									))}
+									{users.filter(u => u.id !== user.id).map((u) => {
+										const isEditing = editingUser === u.id;
+
+										return (
+											<tr key={u.id} className="border-b border-gray-700 hover:bg-gray-700/30">
+												<td className="py-3 px-4">
+													{isEditing ? (
+														<input
+															type="text"
+															value={editUserName}
+															onChange={(e) => setEditUserName(e.target.value)}
+															className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white w-full"
+														/>
+													) : (
+														<span className="font-semibold">{u.name}</span>
+													)}
+												</td>
+												<td className="py-3 px-4">
+													{isEditing ? (
+														<input
+															type="email"
+															value={editUserEmail}
+															onChange={(e) => setEditUserEmail(e.target.value)}
+															className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white w-full"
+														/>
+													) : (
+														<span className="text-gray-300">{u.email}</span>
+													)}
+												</td>
+												<td className="py-3 px-4">
+													{isEditing ? (
+														<input
+															type="text"
+															value={editUserDepartment}
+															onChange={(e) => setEditUserDepartment(e.target.value)}
+															className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white w-full"
+														/>
+													) : (
+														<span className="text-gray-300">{u.department}</span>
+													)}
+												</td>
+												<td className="py-3 px-4">
+													{isEditing ? (
+														<select
+															value={editUserRole}
+															onChange={(e) => setEditUserRole(e.target.value)}
+															className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white"
+														>
+															<option value="worker">Worker</option>
+															<option value="manager">Manager</option>
+															<option value="admin">Admin</option>
+														</select>
+													) : (
+														<span className={`px-3 py-1 rounded-full text-xs font-bold ${getRoleBadgeColor(u.role)}`}>
+															{u.role.toUpperCase()}
+														</span>
+													)}
+												</td>
+												<td className="py-3 px-4">
+													{isEditing ? (
+														<div className="flex flex-col gap-2">
+															<input
+																type="password"
+																value={editUserPassword}
+																onChange={(e) => setEditUserPassword(e.target.value)}
+																placeholder="Nueva contraseña (opcional)"
+																className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+															/>
+															<div className="flex gap-2">
+																<button onClick={saveEditUser} className="p-2 text-green-400 hover:bg-green-900/30 rounded" title="Guardar">
+																	✓
+																</button>
+																<button onClick={cancelEditUser} className="p-2 text-gray-400 hover:bg-gray-700 rounded" title="Cancelar">
+																	✕
+																</button>
+															</div>
+														</div>
+													) : (
+														<div className="flex gap-2">
+															<button onClick={() => startEditUser(u)} className="p-2 text-blue-400 hover:bg-blue-900/30 rounded" title="Editar">
+																✏️
+															</button>
+															<button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-400 hover:bg-red-900/30 rounded" title="Eliminar">
+																🗑️
+															</button>
+														</div>
+													)}
+												</td>
+											</tr>
+										);
+									})}
 								</tbody>
 							</table>
 						</div>
@@ -388,16 +515,16 @@ function AdminDashboard() {
 												<td className="py-3 px-4">
 													{isEditing ? (
 														<div className="flex gap-2">
-															<button onClick={saveEdit} className="p-2 text-green-400 hover:bg-green-900/30 rounded">
+															<button onClick={saveEditEntry} className="p-2 text-green-400 hover:bg-green-900/30 rounded">
 																✓
 															</button>
-															<button onClick={cancelEdit} className="p-2 text-gray-400 hover:bg-gray-700 rounded">
+															<button onClick={cancelEditEntry} className="p-2 text-gray-400 hover:bg-gray-700 rounded">
 																✕
 															</button>
 														</div>
 													) : (
 														<div className="flex gap-2">
-															<button onClick={() => startEdit(entry)} className="p-2 text-blue-400 hover:bg-blue-900/30 rounded">
+															<button onClick={() => startEditEntry(entry)} className="p-2 text-blue-400 hover:bg-blue-900/30 rounded">
 																✏️
 															</button>
 															<button onClick={() => handleDeleteEntry(entry.id)} className="p-2 text-red-400 hover:bg-red-900/30 rounded">

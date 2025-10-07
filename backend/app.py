@@ -403,6 +403,100 @@ def create_user():
         traceback.print_exc()
         return jsonify({'message': f'Error del servidor: {str(e)}'}), 500
 
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+@admin_required
+def update_user(user_id):
+    try:
+        data = request.get_json()
+        current_user_id = int(get_jwt_identity())
+        
+        # No permitir que el admin se edite a sí mismo
+        if user_id == current_user_id:
+            return jsonify({'message': 'No puedes editar tu propio usuario'}), 403
+        
+        print(f"📝 Editando usuario {user_id}")
+        print(f"📦 Datos recibidos: {data}")
+        
+        if db:
+            try:
+                user = User.query.get(user_id)
+                if not user:
+                    return jsonify({'message': 'Usuario no encontrado'}), 404
+                
+                # Actualizar campos si están presentes
+                if 'name' in data:
+                    user.name = data['name']
+                if 'email' in data:
+                    # Verificar que el email no esté en uso por otro usuario
+                    existing = User.query.filter(User.email == data['email'], User.id != user_id).first()
+                    if existing:
+                        return jsonify({'message': 'El email ya está en uso'}), 400
+                    user.email = data['email']
+                if 'role' in data:
+                    user.role = data['role']
+                if 'department' in data:
+                    user.department = data['department']
+                if 'status' in data:
+                    user.status = data['status']
+                
+                # Actualizar contraseña solo si se proporciona
+                if 'password' in data and data['password']:
+                    hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
+                    user.users_password = hashed_password
+                
+                db.session.commit()
+                print(f"✅ Usuario {user_id} actualizado exitosamente")
+                
+                return jsonify({
+                    'message': 'Usuario actualizado exitosamente',
+                    'user': user.to_dict()
+                }), 200
+                
+            except Exception as e:
+                db.session.rollback()
+                print(f"❌ Error actualizando usuario en DB: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'message': f'Error en base de datos: {str(e)}'}), 500
+        
+        # Mock fallback
+        print(f"⚠️ Usando datos mock")
+        user = next((u for u in MOCK_USERS if u['id'] == user_id), None)
+        if not user:
+            return jsonify({'message': 'Usuario no encontrado'}), 404
+        
+        # Actualizar campos
+        if 'name' in data:
+            user['name'] = data['name']
+        if 'email' in data:
+            # Verificar email único
+            if any(u['email'] == data['email'] and u['id'] != user_id for u in MOCK_USERS):
+                return jsonify({'message': 'El email ya está en uso'}), 400
+            user['email'] = data['email']
+        if 'role' in data:
+            user['role'] = data['role']
+        if 'department' in data:
+            user['department'] = data['department']
+        if 'status' in data:
+            user['status'] = data['status']
+        if 'password' in data and data['password']:
+            hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
+            user['password'] = hashed_password
+        
+        user_copy = user.copy()
+        user_copy.pop('password', None)
+        
+        return jsonify({
+            'message': 'Usuario actualizado (mock)',
+            'user': user_copy
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error general en update_user: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Error del servidor: {str(e)}'}), 500
+
 @app.route('/api/users/<int:user_id>', methods=['DELETE'])
 @admin_required
 def delete_user(user_id):
@@ -740,6 +834,7 @@ def get_status():
             'Dashboard personalizado por rol',
             'Gestión de equipos por departamento',
             'Edición y eliminación de registros (permisos)',
+            'Edición de usuarios por Admin',
             'Sistema de autenticación JWT',
             'Base de datos persistente (PostgreSQL)'
         ]

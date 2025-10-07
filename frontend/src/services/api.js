@@ -65,9 +65,10 @@ export const authAPI = {
 
 // Funciones de usuarios
 export const usersAPI = {
-  getAll: () => api.get('/api/users'),
-  create: (userData) => api.post('/api/users', userData),
-  delete: (userId) => api.delete(`/api/users/${userId}`)
+  getAll: () => api.get("/api/users"),
+  create: (userData) => api.post("/api/users", userData),
+  update: (userId, userData) => api.put(`/api/users/${userId}`, userData), // NUEVA LÍNEA
+  delete: (userId) => api.delete(`/api/users/${userId}`),
 };
 
 // Funciones de time entries
