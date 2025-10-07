@@ -246,7 +246,7 @@ function AdminDashboard() {
 				{/* Dashboard Tab */}
 				{activeTab === 'dashboard' && status && (
 					<div>
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
 							<div className="bg-gray-800 border border-gray-700 rounded-xl p-6 text-center">
 								<div className="text-4xl font-bold text-red-400 mb-2">{status.statistics.users}</div>
 								<div className="text-gray-300">Usuarios Totales</div>
@@ -255,10 +255,10 @@ function AdminDashboard() {
 								<div className="text-4xl font-bold text-green-400 mb-2">{status.statistics.time_entries}</div>
 								<div className="text-gray-300">Registros de Tiempo</div>
 							</div>
-							<div className="bg-gray-800 border border-gray-700 rounded-xl p-6 text-center">
+							{/* <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 text-center">
 								<div className="text-4xl font-bold text-purple-400 mb-2">{status.statistics.absences}</div>
 								<div className="text-gray-300">Ausencias</div>
-							</div>
+							</div> */}
 						</div>
 
 						<div className="bg-gray-800 border border-gray-700 rounded-xl p-8">
