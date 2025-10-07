@@ -280,6 +280,24 @@ def home():
         }
     })
 
+@app.route('/api/health')
+def health_check():
+    db_status = 'mock_data'
+    
+    if db:
+        try:
+            db.session.execute(db.text('SELECT 1'))
+            db_status = 'healthy'
+        except Exception as e:
+            db_status = f'error: {str(e)}'
+    
+    return jsonify({
+        'status': 'healthy',
+        'database': db_status,
+        'database_type': DATABASE_TYPE,
+        'persistent': IS_PERSISTENT
+    })
+
 @app.route('/api/status', methods=['GET', 'OPTIONS'])
 def get_status():
     """Ruta pública de status - NO requiere autenticación"""
