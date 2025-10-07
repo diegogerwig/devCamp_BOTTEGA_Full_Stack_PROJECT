@@ -200,63 +200,84 @@ def home():
     
     if db:
         try:
-            # Verificar conexión
+            # Verify connection
             db.session.execute(db.text('SELECT 1'))
             db_info['status'] = 'connected'
             
-            # Estadísticas básicas
+            # Get real-time statistics
             try:
-                user_count = User.query.count()
-                users_by_role = db.session.execute(
-                    db.text("SELECT role, COUNT(*) as count FROM users GROUP BY role")
-                ).fetchall()
+                # Users by role (ordered by hierarchy)
+                admins = User.query.filter_by(role='admin').count()
+                managers = User.query.filter_by(role='manager').count()
+                workers = User.query.filter_by(role='worker').count()
+                total_users = admins + managers + workers
                 
-                entry_count = TimeEntry.query.count()
+                # Time entries stats
+                total_entries = TimeEntry.query.count()
                 open_entries = TimeEntry.query.filter_by(check_out=None).count()
+                closed_entries = total_entries - open_entries
                 
-                total_hours = db.session.execute(
+                # Total hours worked
+                total_hours_result = db.session.execute(
                     db.text("SELECT COALESCE(SUM(total_hours), 0) FROM time_entries WHERE total_hours IS NOT NULL")
                 ).scalar()
+                total_hours = float(total_hours_result) if total_hours_result else 0.0
                 
-                db_info['stats'] = {
-                    'users': {
-                        'total': user_count,
-                        'by_role': [{'role': row[0], 'count': row[1]} for row in users_by_role]
-                    },
-                    'time_entries': {
-                        'total': entry_count,
-                        'open': open_entries,
-                        'closed': entry_count - open_entries,
-                        'total_hours': float(total_hours)
-                    }
+                # Last database change (most recent created_at from both tables)
+                last_user_change = db.session.execute(
+                    db.text("SELECT MAX(created_at) FROM users")
+                ).scalar()
+                
+                last_entry_change = db.session.execute(
+                    db.text("SELECT MAX(created_at) FROM time_entries")
+                ).scalar()
+                
+                # Determine the most recent change
+                last_change = None
+                if last_user_change and last_entry_change:
+                    last_change = max(last_user_change, last_entry_change)
+                elif last_user_change:
+                    last_change = last_user_change
+                elif last_entry_change:
+                    last_change = last_entry_change
+                
+                db_info['users'] = {
+                    'total': total_users,
+                    'admin': admins,
+                    'manager': managers,
+                    'worker': workers
                 }
+                
+                db_info['time_entries'] = {
+                    'total': total_entries,
+                    'open': open_entries,
+                    'closed': closed_entries,
+                    'total_hours_worked': round(total_hours, 2)
+                }
+                
+                if last_change:
+                    db_info['last_database_change'] = last_change.isoformat()
+                
             except Exception as e:
-                print(f"Error obteniendo estadísticas: {e}")
+                print(f"Error getting statistics: {e}")
+                db_info['error'] = str(e)
             
         except Exception as e:
-            print(f"Error conectando a DB: {e}")
+            print(f"Error connecting to database: {e}")
+            db_info['status'] = 'error'
             db_info['error'] = str(e)
     
     return jsonify({
         'app': 'TimeTracer API',
-        'version': '2.0.0',
         'status': 'online',
         'database': db_info,
         'endpoints': {
-            'documentation': '/api/status',
+            'status': '/api/status',
             'health': '/api/health',
             'login': 'POST /api/auth/login',
             'users': '/api/users',
             'time_entries': '/api/time-entries'
-        },
-        'features': [
-            'Sistema de roles: Admin, Manager, Worker',
-            'Autenticación JWT (24h)',
-            'Gestión de usuarios (CRUD)',
-            'Registro de jornadas (check-in/check-out)',
-            'Control de permisos por rol',
-            'Base de datos PostgreSQL persistente'
-        ]
+        }
     })
 
 @app.route('/api/status', methods=['GET', 'OPTIONS'])
