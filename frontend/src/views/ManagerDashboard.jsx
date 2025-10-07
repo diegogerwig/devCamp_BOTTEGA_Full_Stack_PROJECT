@@ -24,12 +24,6 @@ function ManagerDashboard() {
 	const [editCheckIn, setEditCheckIn] = useState('');
 	const [editCheckOut, setEditCheckOut] = useState('');
 
-	// Estados para crear worker
-	const [showCreateWorker, setShowCreateWorker] = useState(false);
-	const [newWorkerName, setNewWorkerName] = useState('');
-	const [newWorkerEmail, setNewWorkerEmail] = useState('');
-	const [newWorkerPassword, setNewWorkerPassword] = useState('');
-
 	useEffect(() => {
 		loadData();
 	}, []);
@@ -160,33 +154,6 @@ function ManagerDashboard() {
 		}
 	};
 
-	const handleCreateWorker = async () => {
-		if (!newWorkerName || !newWorkerEmail || !newWorkerPassword) {
-			alert('Completa todos los campos');
-			return;
-		}
-
-		try {
-			await usersAPI.create({
-				name: newWorkerName,
-				email: newWorkerEmail,
-				password: newWorkerPassword,
-				role: 'worker',
-				department: user.department
-			});
-
-			setNewWorkerName('');
-			setNewWorkerEmail('');
-			setNewWorkerPassword('');
-			setShowCreateWorker(false);
-			await loadData();
-			alert('Worker creado exitosamente');
-		} catch (error) {
-			console.error('Error creando worker:', error);
-			alert(error.response?.data?.message || 'Error al crear worker');
-		}
-	};
-
 	if (loading) {
 		return (
 			<div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -195,8 +162,15 @@ function ManagerDashboard() {
 		);
 	}
 
-	const departmentUsers = users.filter(u => u.department === user.department && u.role === 'worker');
-	const departmentEntries = timeEntries.filter(e => departmentUsers.some(u => u.id === e.user_id));
+	// CAMBIADO: Manager ve todos los usuarios de su departamento (incluyendo él mismo)
+	const departmentUsers = users.filter(u => u.department === user.department);
+	const departmentWorkers = users.filter(u => u.department === user.department && u.role === 'worker');
+	
+	// CAMBIADO: Mostrar todos los registros del departamento (incluyendo los del manager)
+	const allDepartmentEntries = timeEntries.filter(e => 
+		departmentUsers.some(u => u.id === e.user_id)
+	);
+	
 	const myEntries = timeEntries.filter(e => e.user_id === user.id);
 
 	return (
@@ -295,82 +269,60 @@ function ManagerDashboard() {
 					</div>
 				)}
 
-				{/* Team Tab */}
+				{/* Team Tab - SOLO MUESTRA WORKERS */}
 				{activeTab === 'team' && (
 					<div className="bg-gray-800 border border-gray-700 rounded-xl p-8">
 						<div className="flex justify-between items-center mb-6">
-							<h2 className="text-2xl font-bold">Mi Equipo</h2>
-							<button
-								onClick={() => setShowCreateWorker(!showCreateWorker)}
-								className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-medium"
-							>
-								➕ Crear Worker
-							</button>
+							<h2 className="text-2xl font-bold">Mi Equipo - Workers</h2>
+							<div className="bg-yellow-900/30 border border-yellow-700 rounded-lg px-4 py-2">
+								<p className="text-yellow-300 text-sm">
+									ℹ️ Solo el Admin puede crear usuarios
+								</p>
+							</div>
 						</div>
 
-						{showCreateWorker && (
-							<div className="bg-blue-900/30 border border-blue-700 rounded-xl p-6 mb-6">
-								<h3 className="text-lg font-bold mb-4">Nuevo Worker</h3>
-								<div className="grid grid-cols-3 gap-4 mb-4">
-									<input
-										type="text"
-										placeholder="Nombre"
-										value={newWorkerName}
-										onChange={(e) => setNewWorkerName(e.target.value)}
-										className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-									/>
-									<input
-										type="email"
-										placeholder="Email"
-										value={newWorkerEmail}
-										onChange={(e) => setNewWorkerEmail(e.target.value)}
-										className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-									/>
-									<input
-										type="password"
-										placeholder="Contraseña"
-										value={newWorkerPassword}
-										onChange={(e) => setNewWorkerPassword(e.target.value)}
-										className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-									/>
-								</div>
-								<div className="flex gap-2">
-									<button onClick={handleCreateWorker} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg">
-										Crear
-									</button>
-									<button onClick={() => setShowCreateWorker(false)} className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-lg">
-										Cancelar
-									</button>
-								</div>
+						{departmentWorkers.length === 0 ? (
+							<div className="text-center py-12">
+								<div className="text-6xl mb-4">👥</div>
+								<h3 className="text-xl font-semibold text-gray-300 mb-2">
+									No hay workers en tu equipo
+								</h3>
+								<p className="text-gray-500">
+									Contacta al administrador para añadir workers a tu departamento
+								</p>
+							</div>
+						) : (
+							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+								{departmentWorkers.map((worker) => (
+									<div key={worker.id} className="bg-gray-700/50 border border-gray-600 rounded-xl p-6 text-center">
+										<div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
+											<span className="text-white font-bold text-2xl">{worker.name.charAt(0)}</span>
+										</div>
+										<h3 className="font-bold text-lg mb-1">{worker.name}</h3>
+										<p className="text-gray-400 text-sm mb-2">{worker.email}</p>
+										<span className="inline-block px-4 py-2 text-xs font-bold rounded-full bg-green-600 text-green-100">
+											WORKER
+										</span>
+									</div>
+								))}
 							</div>
 						)}
-
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-							{departmentUsers.map((worker) => (
-								<div key={worker.id} className="bg-gray-700/50 border border-gray-600 rounded-xl p-6 text-center">
-									<div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
-										<span className="text-white font-bold text-2xl">{worker.name.charAt(0)}</span>
-									</div>
-									<h3 className="font-bold text-lg mb-1">{worker.name}</h3>
-									<p className="text-gray-400 text-sm mb-2">{worker.email}</p>
-									<span className="inline-block px-4 py-2 text-xs font-bold rounded-full bg-green-600 text-green-100">
-										WORKER
-									</span>
-								</div>
-							))}
-						</div>
 					</div>
 				)}
 
-				{/* Records Tab */}
+				{/* Records Tab - MUESTRA TODOS LOS REGISTROS DEL DEPARTAMENTO */}
 				{activeTab === 'records' && (
 					<div className="bg-gray-800 border border-gray-700 rounded-xl p-8">
-						<h2 className="text-2xl font-bold mb-6">Registros del Equipo</h2>
+						<h2 className="text-2xl font-bold mb-6">Registros del Departamento</h2>
+						<p className="text-gray-400 mb-4">
+							Mostrando registros de todos los miembros del departamento {user.department}
+						</p>
 						<div className="overflow-x-auto">
 							<table className="w-full">
 								<thead>
 									<tr className="border-b-2 border-gray-700">
-										<th className="text-left py-3 px-4 text-gray-400">Worker</th>
+										<th className="text-left py-3 px-4 text-gray-400">Usuario</th>
+										<th className="text-left py-3 px-4 text-gray-400">Rol</th>
 										<th className="text-left py-3 px-4 text-gray-400">Fecha</th>
 										<th className="text-left py-3 px-4 text-gray-400">Entrada</th>
 										<th className="text-left py-3 px-4 text-gray-400">Salida</th>
@@ -379,14 +331,26 @@ function ManagerDashboard() {
 									</tr>
 								</thead>
 								<tbody>
-									{departmentEntries.map((entry) => {
-										const worker = users.find(u => u.id === entry.user_id);
+									{allDepartmentEntries.map((entry) => {
+										const entryUser = users.find(u => u.id === entry.user_id);
 										const isEditing = editingEntry === entry.id;
 										const isOwnRecord = entry.user_id === user.id;
 
 										return (
 											<tr key={entry.id} className="border-b border-gray-700 hover:bg-gray-700/30">
-												<td className="py-3 px-4 font-semibold">{worker?.name || 'Desconocido'}</td>
+												<td className="py-3 px-4">
+													<span className="font-semibold">{entryUser?.name || 'Desconocido'}</span>
+													{isOwnRecord && (
+														<span className="ml-2 text-xs text-blue-400">(Tú)</span>
+													)}
+												</td>
+												<td className="py-3 px-4">
+													<span className={`px-2 py-1 rounded-full text-xs font-bold ${
+														entryUser?.role === 'manager' ? 'bg-blue-600 text-blue-100' : 'bg-green-600 text-green-100'
+													}`}>
+														{entryUser?.role?.toUpperCase() || 'N/A'}
+													</span>
+												</td>
 												<td className="py-3 px-4">{entry.date}</td>
 												<td className="py-3 px-4">
 													{isEditing ? (

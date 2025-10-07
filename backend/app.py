@@ -75,7 +75,6 @@ if db:
         id = db.Column(db.Integer, primary_key=True)
         name = db.Column(db.String(100), nullable=False)
         email = db.Column(db.String(120), unique=True, nullable=False)
-        # Usar 'users_password' como nombre de columna en la DB
         users_password = db.Column('users_password', db.String(255), nullable=False)
         role = db.Column(db.String(20), nullable=False, default='worker')
         department = db.Column(db.String(50), nullable=False)
@@ -290,12 +289,11 @@ def get_users():
     })
 
 @app.route('/api/users', methods=['POST'])
-@token_required
+@admin_required  # CAMBIADO: Solo admin puede crear usuarios
 def create_user():
     try:
         claims = get_jwt()
         user_role = claims.get('role')
-        user_dept = claims.get('department')
         data = request.get_json()
         
         print(f"📥 Recibiendo petición para crear usuario")
@@ -310,22 +308,17 @@ def create_user():
         
         new_user_role = data.get('role', 'worker')
         
-        # Validar permisos
-        if user_role == 'admin':
-            if new_user_role not in ['worker', 'manager', 'admin']:
-                return jsonify({'message': 'Rol no válido'}), 400
-        elif user_role == 'manager':
-            if new_user_role != 'worker':
-                return jsonify({'message': 'Los managers solo pueden crear workers'}), 403
-            if data['department'] != user_dept:
-                return jsonify({'message': 'Solo puedes crear workers en tu departamento'}), 403
-        else:
-            return jsonify({'message': 'No tienes permisos para crear usuarios'}), 403
+        # Solo admin puede crear usuarios
+        if user_role != 'admin':
+            return jsonify({'message': 'Solo los administradores pueden crear usuarios'}), 403
+        
+        # Admin puede crear cualquier rol
+        if new_user_role not in ['worker', 'manager', 'admin']:
+            return jsonify({'message': 'Rol no válido'}), 400
         
         if db:
             try:
                 print(f"🔍 Verificando si el email ya existe...")
-                # Verificar si existe
                 existing = User.query.filter_by(email=data['email']).first()
                 if existing:
                     print(f"❌ El email {data['email']} ya está registrado")
@@ -410,7 +403,6 @@ def update_user(user_id):
         data = request.get_json()
         current_user_id = int(get_jwt_identity())
         
-        # No permitir que el admin se edite a sí mismo
         if user_id == current_user_id:
             return jsonify({'message': 'No puedes editar tu propio usuario'}), 403
         
@@ -423,11 +415,9 @@ def update_user(user_id):
                 if not user:
                     return jsonify({'message': 'Usuario no encontrado'}), 404
                 
-                # Actualizar campos si están presentes
                 if 'name' in data:
                     user.name = data['name']
                 if 'email' in data:
-                    # Verificar que el email no esté en uso por otro usuario
                     existing = User.query.filter(User.email == data['email'], User.id != user_id).first()
                     if existing:
                         return jsonify({'message': 'El email ya está en uso'}), 400
@@ -439,7 +429,6 @@ def update_user(user_id):
                 if 'status' in data:
                     user.status = data['status']
                 
-                # Actualizar contraseña solo si se proporciona
                 if 'password' in data and data['password']:
                     hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
                     user.users_password = hashed_password
@@ -465,11 +454,9 @@ def update_user(user_id):
         if not user:
             return jsonify({'message': 'Usuario no encontrado'}), 404
         
-        # Actualizar campos
         if 'name' in data:
             user['name'] = data['name']
         if 'email' in data:
-            # Verificar email único
             if any(u['email'] == data['email'] and u['id'] != user_id for u in MOCK_USERS):
                 return jsonify({'message': 'El email ya está en uso'}), 400
             user['email'] = data['email']
@@ -546,6 +533,7 @@ def get_time_entries():
             if user_role == 'admin':
                 entries = TimeEntry.query.order_by(TimeEntry.date.desc()).all()
             elif user_role == 'manager':
+                # Manager ve sus registros + registros de workers de su departamento
                 dept_users = User.query.filter_by(department=user_dept).all()
                 user_ids = [u.id for u in dept_users]
                 entries = TimeEntry.query.filter(TimeEntry.user_id.in_(user_ids)).order_by(TimeEntry.date.desc()).all()
@@ -564,6 +552,7 @@ def get_time_entries():
     if user_role == 'admin':
         filtered_entries = MOCK_TIME_ENTRIES
     elif user_role == 'manager':
+        # Manager ve sus registros + registros de workers de su departamento
         dept_users = [u['id'] for u in MOCK_USERS if u['department'] == user_dept]
         filtered_entries = [e for e in MOCK_TIME_ENTRIES if e['user_id'] in dept_users]
     else:
