@@ -75,8 +75,8 @@ if db:
         id = db.Column(db.Integer, primary_key=True)
         name = db.Column(db.String(100), nullable=False)
         email = db.Column(db.String(120), unique=True, nullable=False)
-        # La columna en la DB se llama 'password', pero la usamos como 'users_password' en Python
-        users_password = db.Column('password', db.String(255), nullable=False)
+        # Usar 'users_password' como nombre de columna en la DB
+        users_password = db.Column('users_password', db.String(255), nullable=False)
         role = db.Column(db.String(20), nullable=False, default='worker')
         department = db.Column(db.String(50), nullable=False)
         status = db.Column(db.String(20), nullable=False, default='active')
@@ -753,7 +753,46 @@ def init_database():
     
     try:
         with app.app_context():
-            # NO crear tablas, asumir que ya existen
+            # Ejecutar migración automática
+            print("🔄 Verificando estructura de base de datos...")
+            try:
+                # Verificar si existe la columna users_password
+                result = db.session.execute(db.text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users' 
+                    AND column_name = 'users_password'
+                """))
+                has_users_password = result.fetchone() is not None
+                
+                if not has_users_password:
+                    print("⚠️  Columna 'users_password' no existe, verificando alternativas...")
+                    
+                    # Verificar si existe 'password'
+                    result = db.session.execute(db.text("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name = 'users' 
+                        AND column_name = 'password'
+                    """))
+                    has_password = result.fetchone() is not None
+                    
+                    if has_password:
+                        print("✅ Renombrando 'password' a 'users_password'...")
+                        db.session.execute(db.text("ALTER TABLE users RENAME COLUMN password TO users_password"))
+                        db.session.commit()
+                        print("✅ Migración completada!")
+                    else:
+                        print("⚠️  Creando columna 'users_password'...")
+                        db.session.execute(db.text("ALTER TABLE users ADD COLUMN users_password VARCHAR(255)"))
+                        db.session.commit()
+                        print("✅ Columna creada!")
+                else:
+                    print("✅ La columna 'users_password' existe correctamente")
+                    
+            except Exception as e:
+                print(f"⚠️ Error en migración automática: {e}")
+                
             print(f"✅ Using existing {DATABASE_TYPE} tables")
                 
     except Exception as e:
