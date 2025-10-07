@@ -192,18 +192,13 @@ def favicon():
 
 @app.route('/')
 def home():
-    # Initialize db_info structure early
-    db_info = {
-        'type': DATABASE_TYPE,
-        'persistent': IS_PERSISTENT,
-        'status': 'disconnected'
-    }
+    # Initialize db_info structure
+    db_info = {}
     
     if db:
         try:
             # Verify connection
             db.session.execute(db.text('SELECT 1'))
-            db_info['status'] = 'connected'
             
             # Get real-time statistics
             try:
@@ -224,73 +219,101 @@ def home():
                 ).scalar()
                 total_hours = float(total_hours_result) if total_hours_result else 0.0
                 
-                # Last database change (most recent created_at from both tables)
+                # Last database change - check multiple timestamps
+                last_changes = []
+                
+                # Most recent user creation
                 last_user_change = db.session.execute(
                     db.text("SELECT MAX(created_at) FROM users")
                 ).scalar()
+                if last_user_change:
+                    last_changes.append(last_user_change)
                 
-                last_entry_change = db.session.execute(
+                # Most recent time entry creation
+                last_entry_creation = db.session.execute(
                     db.text("SELECT MAX(created_at) FROM time_entries")
                 ).scalar()
+                if last_entry_creation:
+                    last_changes.append(last_entry_creation)
                 
-                # Determine the most recent change
-                last_change = None
-                if last_user_change and last_entry_change:
-                    last_change = max(last_user_change, last_entry_change)
-                elif last_user_change:
-                    last_change = last_user_change
-                elif last_entry_change:
-                    last_change = last_entry_change
+                # Most recent check-in
+                last_check_in = db.session.execute(
+                    db.text("SELECT MAX(check_in) FROM time_entries WHERE check_in IS NOT NULL")
+                ).scalar()
+                if last_check_in:
+                    last_changes.append(last_check_in)
                 
-                # Add users stats FIRST
+                # Most recent check-out
+                last_check_out = db.session.execute(
+                    db.text("SELECT MAX(check_out) FROM time_entries WHERE check_out IS NOT NULL")
+                ).scalar()
+                if last_check_out:
+                    last_changes.append(last_check_out)
+                
+                # Get the most recent of all timestamps
+                last_change = max(last_changes) if last_changes else None
+                
+                # Build db_info in exact order
+                db_info['type'] = DATABASE_TYPE
+                db_info['persistent'] = IS_PERSISTENT
+                db_info['status'] = 'connected'
                 db_info['users'] = {
                     'total': total_users,
                     'admin': admins,
                     'manager': managers,
                     'worker': workers
                 }
-                
-                # Then time_entries stats
                 db_info['time_entries'] = {
                     'total': total_entries,
                     'open': open_entries,
                     'closed': closed_entries,
                     'total_hours_worked': round(total_hours, 2)
                 }
-                
-                # Finally last_database_change
                 if last_change:
                     db_info['last_database_change'] = last_change.isoformat()
                 
             except Exception as e:
                 print(f"Error getting statistics: {e}")
+                db_info['type'] = DATABASE_TYPE
+                db_info['persistent'] = IS_PERSISTENT
+                db_info['status'] = 'error'
                 db_info['error'] = str(e)
             
         except Exception as e:
             print(f"Error connecting to database: {e}")
-            db_info['status'] = 'error'
+            db_info['type'] = DATABASE_TYPE
+            db_info['persistent'] = IS_PERSISTENT
+            db_info['status'] = 'disconnected'
             db_info['error'] = str(e)
+    else:
+        db_info['type'] = DATABASE_TYPE
+        db_info['persistent'] = IS_PERSISTENT
+        db_info['status'] = 'disconnected'
     
     # Get the base URL from the request
     base_url = request.url_root.rstrip('/')
     
-    # Build response with explicit order using list of tuples
-    from collections import OrderedDict
+    # Build response manually to control order
+    import json
+    from flask import Response
     
-    response_data = OrderedDict([
-        ('app', 'TimeTracer API'),
-        ('status', 'online'),
-        ('database', db_info),
-        ('endpoints', {
+    response_dict = {
+        'app': 'TimeTracer API',
+        'status': 'online',
+        'database': db_info,
+        'endpoints': {
             'status': f'{base_url}/api/status',
             'health': f'{base_url}/api/health',
             'login': f'POST {base_url}/api/auth/login',
             'users': f'{base_url}/api/users',
             'time_entries': f'{base_url}/api/time-entries'
-        })
-    ])
+        }
+    }
     
-    return jsonify(response_data)
+    # Use json.dumps with ensure_ascii=False to preserve order
+    json_str = json.dumps(response_dict, ensure_ascii=False, indent=2)
+    
+    return Response(json_str, mimetype='application/json')
 
 @app.route('/api/health')
 def health_check():
