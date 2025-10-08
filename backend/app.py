@@ -64,7 +64,7 @@ if DATABASE_URL:
         try:
             import pg8000
             db = SQLAlchemy(app)
-            DATABASE_TYPE = 'PostgreSQL (100% Persistente)'
+            DATABASE_TYPE = 'PostgreSQL'
             IS_PERSISTENT = True
             print("✅ PostgreSQL with pg8000 configured!")
         except ImportError as e:
@@ -75,19 +75,19 @@ if DATABASE_URL:
         print(f"❌ PostgreSQL setup failed: {e}")
         db = None
 
-if db is None:
-    try:
-        from flask_sqlalchemy import SQLAlchemy
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///timetracer.db'
-        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-        db = SQLAlchemy(app)
-        DATABASE_TYPE = 'SQLite (Se pierde en redeploy)'
-        IS_PERSISTENT = False
-        print("⚠️ Using SQLite fallback")
-    except Exception as e:
-        print(f"❌ SQLite setup failed: {e}")
-        DATABASE_TYPE = 'Mock Data (No database available)'
-        IS_PERSISTENT = False
+# if db is None:
+#     try:
+#         from flask_sqlalchemy import SQLAlchemy
+#         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///timetracer.db'
+#         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+#         db = SQLAlchemy(app)
+#         DATABASE_TYPE = 'SQLite (Se pierde en redeploy)'
+#         IS_PERSISTENT = False
+#         print("⚠️ Using SQLite fallback")
+#     except Exception as e:
+#         print(f"❌ SQLite setup failed: {e}")
+#         DATABASE_TYPE = 'Mock Data (No database available)'
+#         IS_PERSISTENT = False
 
 # =================== FUNCIONES AUXILIARES PARA FECHAS ===================
 def parse_datetime_string(datetime_str):
