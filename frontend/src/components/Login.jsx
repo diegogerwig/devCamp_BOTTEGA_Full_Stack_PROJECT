@@ -42,7 +42,8 @@ function Login() {
         });
 
         if (!result.success) {
-            setError(result.message);
+			setError(result.message);
+			setTimeout(() => setError(''), 3000);
             console.error('❌ Login failed:', result.message);
         } else {
             console.log('✅ Login successful, user:', result.user);
