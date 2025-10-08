@@ -1,13 +1,8 @@
-"""
-Datos de usuarios iniciales para nuevos despliegues
-Usar estos datos para poblar la base de datos en un nuevo entorno
-"""
 import os
 from flask_bcrypt import Bcrypt
 
 bcrypt = Bcrypt()
 
-# Usuarios de demostración para inicializar la base de datos
 MOCK_USERS = [
     {
         'id': 1, 
@@ -42,5 +37,4 @@ MOCK_USERS = [
 ]
 
 def get_mock_users():
-    """Retorna la lista de usuarios mock para inicialización"""
     return MOCK_USERS

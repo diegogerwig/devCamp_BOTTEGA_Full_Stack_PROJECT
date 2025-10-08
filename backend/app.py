@@ -486,7 +486,7 @@ def health_check():
 
 @app.route('/api/docs')
 def api_documentation():
-    """Documentación completa de la API (alternativa a Swagger)"""
+    """Documentación completa de la API"""
     base_url = request.url_root.rstrip('/')
     
     return jsonify({
