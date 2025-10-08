@@ -16,30 +16,20 @@ function Login() {
     };
 
     const showError = (message) => {
-        console.log('🔴 showError called with:', message);
-        console.log('🔴 Current timeout ref:', errorTimeoutRef.current);
-        
         if (errorTimeoutRef.current) {
-            console.log('🔴 Clearing previous timeout');
             clearTimeout(errorTimeoutRef.current);
         }
         
         setError(message);
-        console.log('🔴 Error set to:', message);
         
         errorTimeoutRef.current = setTimeout(() => {
-            console.log('🔴 Timeout executed - clearing error after 3 seconds');
             setError('');
             errorTimeoutRef.current = null;
         }, 3000);
-        
-        console.log('🔴 New timeout created:', errorTimeoutRef.current);
     };
 
     const clearError = () => {
-        console.log('🟢 clearError called');
         if (errorTimeoutRef.current) {
-            console.log('🟢 Clearing timeout');
             clearTimeout(errorTimeoutRef.current);
             errorTimeoutRef.current = null;
         }
@@ -48,29 +38,21 @@ function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('📝 handleSubmit called');
 
         if (!isValidEmail(email)) {
-            console.log('❌ Invalid email format');
             showError('Please enter a valid email (example@domain.com)');
             return;
         }
 
         setLoading(true);
-        console.log('⏳ Loading started');
 
         const result = await login(email, password);
-        console.log('📥 Login result:', result);
 
         if (!result.success) {
-            console.log('❌ Login failed, showing error');
             showError(result.message);
-        } else {
-            console.log('✅ Login successful');
         }
 
         setLoading(false);
-        console.log('⏳ Loading finished');
     };
 
     const demoCredentials = [
@@ -92,7 +74,6 @@ function Login() {
     ];
 
     const fillCredentials = (demoEmail, demoPassword) => {
-        console.log('🎭 fillCredentials called');
         setEmail(demoEmail);
         setPassword(demoPassword);
         clearError();

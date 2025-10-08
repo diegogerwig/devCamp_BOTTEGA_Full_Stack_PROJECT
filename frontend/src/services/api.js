@@ -44,7 +44,8 @@ api.interceptors.response.use(
     // ONLY logout if it's a 401 error on a request that is NOT /api/auth/me
     if (
       error.response?.status === 401 &&
-      !error.config?.url?.includes("/api/auth/me")
+      !error.config?.url?.includes("/api/auth/me") &&
+      !error.config?.url?.includes("/api/auth/login")
     ) {
       console.log("🚪 Invalid token on protected request, clearing session");
       localStorage.removeItem("token");
