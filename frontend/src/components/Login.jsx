@@ -64,9 +64,9 @@ function Login() {
 	};
 
 	const demoCredentials = [
-		{ role: 'Admin', email: 'admin@timetracer.com', password: 'admin123' },
-		{ role: 'Manager', email: 'juan@company.com', password: 'manager123' },
-		{ role: 'Worker', email: 'maria@company.com', password: 'worker123' }
+		{ role: 'Admin', email: 'admin@timetracer.com', password: 'adminadminQWERTY123' },
+		{ role: 'Manager', email: 'juan@company.com', password: 'managerjuanQWERTY123' },
+		{ role: 'Worker', email: 'maria@company.com', password: 'workermariaQWERTY123' }
 	];
 
 	const fillCredentials = (demoEmail, demoPassword) => {
