@@ -111,7 +111,6 @@ function Login() {
                                 value={email}
                                 onChange={(e) => {
                                     setEmail(e.target.value);
-                                    setError('');
                                 }}
                                 className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="your@email.com"
@@ -128,7 +127,6 @@ function Login() {
                                 value={password}
                                 onChange={(e) => {
                                     setPassword(e.target.value);
-                                    setError('');
                                 }}
                                 className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="••••••••"
