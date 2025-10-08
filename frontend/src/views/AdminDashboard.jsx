@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { usersAPI, timeEntriesAPI, statusAPI } from '../services/api';
+import { usersAPI, timeEntriesAPI } from '../services/api'; // ✅ QUITADO statusAPI
 import {
 	formatLocalDateTime,
 	calculateDuration,
@@ -13,8 +13,8 @@ function AdminDashboard() {
 	const { user, logout } = useAuth();
 	const [users, setUsers] = useState([]);
 	const [timeEntries, setTimeEntries] = useState([]);
-	const [status, setStatus] = useState(null);
-	const [activeTab, setActiveTab] = useState('dashboard');
+	// ✅ ELIMINADO: const [status, setStatus] = useState(null);
+	const [activeTab, setActiveTab] = useState('users'); // ✅ CAMBIADO: Ya no hay tab 'dashboard'
 	const [loading, setLoading] = useState(true);
 
 	// Estados para edición de registros
@@ -47,10 +47,10 @@ function AdminDashboard() {
 	const loadData = async () => {
 		setLoading(true);
 		try {
-			const [usersRes, entriesRes, statusRes] = await Promise.all([
+			// ✅ QUITADO statusRes
+			const [usersRes, entriesRes] = await Promise.all([
 				usersAPI.getAll(),
-				timeEntriesAPI.getAll(),
-				statusAPI.get()
+				timeEntriesAPI.getAll()
 			]);
 
 			setUsers(usersRes.data.users);
@@ -61,7 +61,7 @@ function AdminDashboard() {
 			});
 			setTimeEntries(sortedEntries);
 			
-			setStatus(statusRes.data);
+			// ✅ ELIMINADO: setStatus(statusRes.data);
 		} catch (error) {
 			console.error('Error cargando datos:', error);
 		}
@@ -70,12 +70,8 @@ function AdminDashboard() {
 
 	// Función para validar formato de email
 	const isValidEmail = (email) => {
-		// Regex: debe tener texto antes de @, una sola @, texto después de @, un punto, y texto después del punto
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		
-		// Verificar que solo tenga una @
 		const atCount = (email.match(/@/g) || []).length;
-		
 		return emailRegex.test(email) && atCount === 1;
 	};
 
@@ -133,7 +129,6 @@ function AdminDashboard() {
 			return;
 		}
 
-		// Validar formato de email
 		if (!isValidEmail(newUserEmail)) {
 			setCreateUserError('Por favor, introduce un email válido (ejemplo@dominio.com)');
 			return;
@@ -176,7 +171,6 @@ function AdminDashboard() {
 	const saveEditUser = async () => {
 		setEditUserError('');
 
-		// Validar formato de email
 		if (!isValidEmail(editUserEmail)) {
 			setEditUserError('Por favor, introduce un email válido (ejemplo@dominio.com)');
 			return;
@@ -247,6 +241,10 @@ function AdminDashboard() {
 		}
 	};
 
+	// ✅ Calcular estadísticas desde los datos cargados
+	const totalUsers = users.length;
+	const totalEntries = timeEntries.length;
+
 	return (
 		<div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
 			<div className="max-w-7xl mx-auto">
@@ -263,51 +261,34 @@ function AdminDashboard() {
 					</button>
 				</div>
 
-				{/* Tabs */}
+				{/* ✅ NUEVO: Estadísticas simples en cards */}
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+					<div className="bg-gray-800 border border-gray-700 rounded-xl p-6 text-center">
+						<div className="text-4xl font-bold text-red-400 mb-2">{totalUsers}</div>
+						<div className="text-gray-300">Usuarios Totales</div>
+					</div>
+					<div className="bg-gray-800 border border-gray-700 rounded-xl p-6 text-center">
+						<div className="text-4xl font-bold text-green-400 mb-2">{totalEntries}</div>
+						<div className="text-gray-300">Registros de Tiempo</div>
+					</div>
+				</div>
+
+				{/* Tabs - ✅ QUITADO 'dashboard' */}
 				<div className="flex justify-center mb-8">
 					<div className="bg-gray-800 border border-gray-700 rounded-xl p-2 flex space-x-2">
-						{['dashboard', 'users', 'records'].map((tab) => (
+						{['users', 'records'].map((tab) => (
 							<button
 								key={tab}
 								onClick={() => setActiveTab(tab)}
 								className={`px-6 py-2 rounded-lg font-medium ${activeTab === tab ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-gray-700'
 									}`}
 							>
-								{tab === 'dashboard' && '📊 Dashboard'}
 								{tab === 'users' && '👥 Usuarios'}
 								{tab === 'records' && '⏰ Registros'}
 							</button>
 						))}
 					</div>
 				</div>
-
-				{/* Dashboard Tab */}
-				{activeTab === 'dashboard' && status && (
-					<div>
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-							<div className="bg-gray-800 border border-gray-700 rounded-xl p-6 text-center">
-								<div className="text-4xl font-bold text-red-400 mb-2">{status.statistics.users}</div>
-								<div className="text-gray-300">Usuarios Totales</div>
-							</div>
-							<div className="bg-gray-800 border border-gray-700 rounded-xl p-6 text-center">
-								<div className="text-4xl font-bold text-green-400 mb-2">{status.statistics.time_entries}</div>
-								<div className="text-gray-300">Registros de Tiempo</div>
-							</div>
-						</div>
-
-						<div className="bg-gray-800 border border-gray-700 rounded-xl p-8">
-							<h2 className="text-2xl font-bold mb-6 text-center">Características del Sistema</h2>
-							<div className="grid md:grid-cols-2 gap-4">
-								{status.features?.map((feature, index) => (
-									<div key={index} className="flex items-center space-x-3 p-4 bg-gray-700/50 rounded-lg">
-										<span className="text-green-400">✅</span>
-										<span className="text-gray-200">{feature}</span>
-									</div>
-								))}
-							</div>
-						</div>
-					</div>
-				)}
 
 				{/* Users Tab */}
 				{activeTab === 'users' && (

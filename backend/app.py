@@ -440,7 +440,6 @@ def health_check():
         'persistent': IS_PERSISTENT
     })
 
-
 @app.route('/api/docs')
 def api_documentation():
     """Documentación completa de la API (alternativa a Swagger)"""
