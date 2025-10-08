@@ -211,7 +211,8 @@ MOCK_USERS = [
 
 MOCK_TIME_ENTRIES = []
 
-# =================== RUTAS PÚBLICAS ===================
+# =================== RUTAS PÚBLICAS DE DOCUMENTACIÓN ===================
+
 @app.route('/favicon.svg')
 @app.route('/favicon.ico')
 def favicon():
@@ -219,131 +220,210 @@ def favicon():
 
 @app.route('/')
 def home():
-    # Initialize db_info structure
-    db_info = {}
+    """Root endpoint - Estadísticas en vivo + Documentación de la API"""
+    
+    # Estructura base de la respuesta
+    response_data = {
+        'app': 'TimeTracer API',
+        'version': '1.0.0',
+        'status': 'online',
+        'database': {},
+        'endpoints': {}
+    }
     
     if db:
         try:
-            # Verify connection
+            # Verificar conexión
             db.session.execute(db.text('SELECT 1'))
             
-            # Get real-time statistics
-            try:
-                # Users by role (ordered by hierarchy)
-                admins = User.query.filter_by(role='admin').count()
-                managers = User.query.filter_by(role='manager').count()
-                workers = User.query.filter_by(role='worker').count()
-                total_users = admins + managers + workers
-                
-                # Time entries stats
-                total_entries = TimeEntry.query.count()
-                open_entries = TimeEntry.query.filter_by(check_out=None).count()
-                closed_entries = total_entries - open_entries
-                
-                # Total hours worked
-                total_hours_result = db.session.execute(
-                    db.text("SELECT COALESCE(SUM(total_hours), 0) FROM time_entries WHERE total_hours IS NOT NULL")
-                ).scalar()
-                total_hours = float(total_hours_result) if total_hours_result else 0.0
-                
-                # Last database change - check multiple timestamps
-                last_changes = []
-                
-                # Most recent user creation
-                last_user_change = db.session.execute(
-                    db.text("SELECT MAX(created_at) FROM users")
-                ).scalar()
-                if last_user_change:
-                    last_changes.append(last_user_change)
-                
-                # Most recent time entry creation
-                last_entry_creation = db.session.execute(
-                    db.text("SELECT MAX(created_at) FROM time_entries")
-                ).scalar()
-                if last_entry_creation:
-                    last_changes.append(last_entry_creation)
-                
-                # Most recent check-in
-                last_check_in = db.session.execute(
-                    db.text("SELECT MAX(check_in) FROM time_entries WHERE check_in IS NOT NULL")
-                ).scalar()
-                if last_check_in:
-                    last_changes.append(last_check_in)
-                
-                # Most recent check-out
-                last_check_out = db.session.execute(
-                    db.text("SELECT MAX(check_out) FROM time_entries WHERE check_out IS NOT NULL")
-                ).scalar()
-                if last_check_out:
-                    last_changes.append(last_check_out)
-                
-                # Get the most recent of all timestamps
-                last_change = max(last_changes) if last_changes else None
-                
-                # Build db_info in exact order
-                db_info['type'] = DATABASE_TYPE
-                db_info['persistent'] = IS_PERSISTENT
-                db_info['status'] = 'connected'
-                db_info['users'] = {
+            # Obtener estadísticas en tiempo real
+            admins = User.query.filter_by(role='admin').count()
+            managers = User.query.filter_by(role='manager').count()
+            workers = User.query.filter_by(role='worker').count()
+            total_users = admins + managers + workers
+            
+            total_entries = TimeEntry.query.count()
+            open_entries = TimeEntry.query.filter_by(check_out=None).count()
+            closed_entries = total_entries - open_entries
+            
+            total_hours_result = db.session.execute(
+                db.text("SELECT COALESCE(SUM(total_hours), 0) FROM time_entries WHERE total_hours IS NOT NULL")
+            ).scalar()
+            total_hours = float(total_hours_result) if total_hours_result else 0.0
+            
+            # Última modificación en la base de datos
+            last_changes = []
+            
+            last_user_change = db.session.execute(
+                db.text("SELECT MAX(created_at) FROM users")
+            ).scalar()
+            if last_user_change:
+                last_changes.append(last_user_change)
+            
+            last_entry_creation = db.session.execute(
+                db.text("SELECT MAX(created_at) FROM time_entries")
+            ).scalar()
+            if last_entry_creation:
+                last_changes.append(last_entry_creation)
+            
+            last_check_in = db.session.execute(
+                db.text("SELECT MAX(check_in) FROM time_entries WHERE check_in IS NOT NULL")
+            ).scalar()
+            if last_check_in:
+                last_changes.append(last_check_in)
+            
+            last_check_out = db.session.execute(
+                db.text("SELECT MAX(check_out) FROM time_entries WHERE check_out IS NOT NULL")
+            ).scalar()
+            if last_check_out:
+                last_changes.append(last_check_out)
+            
+            last_change = max(last_changes) if last_changes else None
+            
+            # Construir objeto database con estadísticas
+            response_data['database'] = {
+                'type': DATABASE_TYPE,
+                'persistent': IS_PERSISTENT,
+                'status': 'connected',
+                'users': {
                     'total': total_users,
                     'admin': admins,
                     'manager': managers,
                     'worker': workers
-                }
-                db_info['time_entries'] = {
+                },
+                'time_entries': {
                     'total': total_entries,
                     'open': open_entries,
                     'closed': closed_entries,
                     'total_hours_worked': round(total_hours, 2)
                 }
-                if last_change:
-                    db_info['last_database_change'] = last_change.isoformat()
-                
-            except Exception as e:
-                print(f"Error getting statistics: {e}")
-                db_info['type'] = DATABASE_TYPE
-                db_info['persistent'] = IS_PERSISTENT
-                db_info['status'] = 'error'
-                db_info['error'] = str(e)
+            }
+            
+            if last_change:
+                response_data['database']['last_database_change'] = last_change.isoformat()
             
         except Exception as e:
-            print(f"Error connecting to database: {e}")
-            db_info['type'] = DATABASE_TYPE
-            db_info['persistent'] = IS_PERSISTENT
-            db_info['status'] = 'disconnected'
-            db_info['error'] = str(e)
+            print(f"Error getting statistics: {e}")
+            response_data['database'] = {
+                'type': DATABASE_TYPE,
+                'persistent': IS_PERSISTENT,
+                'status': 'error',
+                'error': str(e)
+            }
     else:
-        db_info['type'] = DATABASE_TYPE
-        db_info['persistent'] = IS_PERSISTENT
-        db_info['status'] = 'disconnected'
+        response_data['database'] = {
+            'type': DATABASE_TYPE,
+            'persistent': IS_PERSISTENT,
+            'status': 'disconnected'
+        }
     
-    # Get the base URL from the request
+    # Construir documentación de endpoints
     base_url = request.url_root.rstrip('/')
     
-    # Build response manually to control order
-    import json
-    from flask import Response
-    
-    response_dict = {
-        'app': 'TimeTracer API',
-        'status': 'online',
-        'database': db_info,
-        'endpoints': {
-            'status': f'{base_url}/api/status',
-            'health': f'{base_url}/api/health',
-            'login': f'POST {base_url}/api/auth/login',
-            'users': f'{base_url}/api/users',
-            'time_entries': f'{base_url}/api/time-entries'
+    response_data['endpoints'] = {
+        'health': {
+            'url': f'{base_url}/api/health',
+            'method': 'GET',
+            'auth': 'No',
+            'description': 'Health check endpoint para monitoring'
+        },
+        'auth': {
+            'login': {
+                'url': f'{base_url}/api/auth/login',
+                'method': 'POST',
+                'auth': 'No',
+                'description': 'Autenticación de usuarios',
+                'body': {
+                    'email': 'string',
+                    'password': 'string'
+                }
+            },
+            'me': {
+                'url': f'{base_url}/api/auth/me',
+                'method': 'GET',
+                'auth': 'JWT Token',
+                'description': 'Obtener información del usuario actual'
+            }
+        },
+        'users': {
+            'list': {
+                'url': f'{base_url}/api/users',
+                'method': 'GET',
+                'auth': 'JWT Token',
+                'description': 'Listar usuarios según permisos del rol'
+            },
+            'create': {
+                'url': f'{base_url}/api/users',
+                'method': 'POST',
+                'auth': 'JWT Token (Admin only)',
+                'description': 'Crear nuevo usuario',
+                'body': {
+                    'name': 'string',
+                    'email': 'string',
+                    'password': 'string',
+                    'role': 'admin|manager|worker',
+                    'department': 'string'
+                }
+            },
+            'update': {
+                'url': f'{base_url}/api/users/:id',
+                'method': 'PUT',
+                'auth': 'JWT Token (Admin only)',
+                'description': 'Actualizar usuario existente'
+            },
+            'delete': {
+                'url': f'{base_url}/api/users/:id',
+                'method': 'DELETE',
+                'auth': 'JWT Token (Admin only)',
+                'description': 'Eliminar usuario'
+            }
+        },
+        'time_entries': {
+            'list': {
+                'url': f'{base_url}/api/time-entries',
+                'method': 'GET',
+                'auth': 'JWT Token',
+                'description': 'Listar registros según permisos del rol'
+            },
+            'create': {
+                'url': f'{base_url}/api/time-entries',
+                'method': 'POST',
+                'auth': 'JWT Token',
+                'description': 'Crear o actualizar registro de tiempo',
+                'body': {
+                    'user_id': 'integer',
+                    'date': 'YYYY-MM-DD',
+                    'check_in': 'ISO datetime',
+                    'check_out': 'ISO datetime (optional)',
+                    'notes': 'string (optional)'
+                }
+            },
+            'update': {
+                'url': f'{base_url}/api/time-entries/:id',
+                'method': 'PUT',
+                'auth': 'JWT Token (Manager/Admin only)',
+                'description': 'Actualizar registro de tiempo'
+            },
+            'delete': {
+                'url': f'{base_url}/api/time-entries/:id',
+                'method': 'DELETE',
+                'auth': 'JWT Token (Manager/Admin only)',
+                'description': 'Eliminar registro de tiempo'
+            }
         }
     }
     
-    # Use json.dumps with ensure_ascii=False to preserve order
-    json_str = json.dumps(response_dict, ensure_ascii=False, indent=2)
+    # Usar json.dumps para preservar el orden
+    import json
+    from flask import Response
     
+    json_str = json.dumps(response_data, ensure_ascii=False, indent=2)
     return Response(json_str, mimetype='application/json')
+
 
 @app.route('/api/health')
 def health_check():
+    """Simple health check para Render.com monitoring"""
     db_status = 'mock_data'
     
     if db:
@@ -360,50 +440,49 @@ def health_check():
         'persistent': IS_PERSISTENT
     })
 
-@app.route('/api/status', methods=['GET', 'OPTIONS'])
-def get_status():
-    """Ruta pública de status - NO requiere autenticación"""
-    user_count = entry_count = 0
-    
-    if db:
-        try:
-            db.session.execute(db.text('SELECT 1'))
-            user_count = User.query.count()
-            entry_count = TimeEntry.query.count()
-            db_status = f'✅ {DATABASE_TYPE} Connected'
-        except Exception as e:
-            user_count = len(MOCK_USERS)
-            entry_count = len(MOCK_TIME_ENTRIES)
-            db_status = f'⚠️ Using mock data'
-    else:
-        user_count = len(MOCK_USERS)
-        entry_count = len(MOCK_TIME_ENTRIES)
-        db_status = '⚠️ Using mock data'
+
+@app.route('/api/docs')
+def api_documentation():
+    """Documentación completa de la API (alternativa a Swagger)"""
+    base_url = request.url_root.rstrip('/')
     
     return jsonify({
-        'backend': '✅ Online',
-        'database': db_status,
-        'statistics': {
-            'users': user_count,
-            'time_entries': entry_count,
-            'absences': 0
+        'api': 'TimeTracer API Documentation',
+        'version': '1.0.0',
+        'base_url': base_url,
+        'authentication': {
+            'type': 'JWT Bearer Token',
+            'header': 'Authorization: Bearer <token>',
+            'obtain_token': f'POST {base_url}/api/auth/login'
         },
-        'database_type': DATABASE_TYPE,
-        'persistent': IS_PERSISTENT,
-        'features': [
-            'Gestión de usuarios con roles (Admin, Manager, Worker)',
-            'Registro de jornadas laborales con entrada/salida',
-            'Control de permisos por roles',
-            'Dashboard personalizado por rol',
-            'Gestión de equipos por departamento',
-            'Edición y eliminación de registros (permisos)',
-            'Edición de usuarios por Admin',
-            'Sistema de autenticación JWT',
-            'Base de datos persistente (PostgreSQL)',
-            'Manejo de horas en zona horaria local',
-            'Múltiples registros por día',
-            'Validación de registros abiertos'
-        ]
+        'endpoints': {
+            'public': {
+                'GET /': 'API root con estadísticas en vivo',
+                'GET /api/health': 'Health check',
+                'GET /api/docs': 'Esta documentación',
+                'POST /api/auth/login': 'Login de usuarios'
+            },
+            'authenticated': {
+                'GET /api/auth/me': 'Usuario actual',
+                'GET /api/users': 'Listar usuarios (según rol)',
+                'GET /api/time-entries': 'Listar registros (según rol)',
+                'POST /api/time-entries': 'Crear registro'
+            },
+            'admin_only': {
+                'POST /api/users': 'Crear usuario',
+                'PUT /api/users/:id': 'Actualizar usuario',
+                'DELETE /api/users/:id': 'Eliminar usuario'
+            },
+            'manager_admin': {
+                'PUT /api/time-entries/:id': 'Actualizar registro',
+                'DELETE /api/time-entries/:id': 'Eliminar registro'
+            }
+        },
+        'roles': {
+            'admin': 'Acceso completo al sistema',
+            'manager': 'Gestión de su departamento',
+            'worker': 'Gestión de sus propios registros'
+        }
     })
 
 # =================== AUTENTICACIÓN ===================

@@ -79,9 +79,4 @@ export const timeEntriesAPI = {
   delete: (entryId) => api.delete(`/api/time-entries/${entryId}`)
 };
 
-// Función de status
-export const statusAPI = {
-  get: () => api.get('/api/status')
-};
-
 export default api;
