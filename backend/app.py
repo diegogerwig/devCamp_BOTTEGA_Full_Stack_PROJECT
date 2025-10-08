@@ -220,7 +220,7 @@ def favicon():
 
 @app.route('/')
 def home():
-    """Root endpoint - Estadísticas en vivo + Documentación completa de la API"""
+    """Root endpoint - Estadísticas en vivo + Documentación de la API"""
     
     # Estructura base de la respuesta
     response_data = {
@@ -230,8 +230,7 @@ def home():
         'database': {},
         'public_endpoints': {},
         'authentication': {},
-        'protected_endpoints': {},
-        'curl_examples': {}
+        'protected_endpoints': {}
     }
     
     # =================== ESTADÍSTICAS DE BASE DE DATOS ===================
@@ -332,24 +331,14 @@ def home():
             'method': 'GET',
             'browsable': '✅ YES',
             'auth_required': 'No',
-            'description': 'Esta página - Estadísticas en vivo y documentación',
-            'try_now': f'{base_url}/'
+            'description': 'Esta página - Estadísticas en vivo y documentación'
         },
         'health': {
             'url': f'{base_url}/api/health',
             'method': 'GET',
             'browsable': '✅ YES',
             'auth_required': 'No',
-            'description': 'Health check del servidor para monitoring',
-            'try_now': f'{base_url}/api/health'
-        },
-        'docs': {
-            'url': f'{base_url}/api/docs',
-            'method': 'GET',
-            'browsable': '✅ YES',
-            'auth_required': 'No',
-            'description': 'Documentación detallada de la API',
-            'try_now': f'{base_url}/api/docs'
+            'description': 'Health check del servidor para monitoring'
         }
     }
     
@@ -382,13 +371,8 @@ def home():
     
     # Endpoints protegidos (requieren JWT token)
     response_data['protected_endpoints'] = {
-        'note': '🔒 Estos endpoints requieren JWT Token en el header Authorization',
-        'how_to_use': {
-            'step_1': 'Hacer POST a /api/auth/login con credenciales válidas',
-            'step_2': 'Copiar el access_token de la respuesta',
-            'step_3': 'Añadir header: Authorization: Bearer <token>',
-            'step_4': 'Usar Postman, Thunder Client, curl o tu frontend'
-        },
+        'note': '🔒 Estos endpoints requieren JWT Token en el header Authorization: Bearer <token>',
+        'how_to_use': 'Ver ejemplos de uso en el README.md del repositorio',
         'auth': {
             'me': {
                 'url': f'{base_url}/api/auth/me',
@@ -404,7 +388,6 @@ def home():
                 'method': 'GET',
                 'browsable': '❌ NO - Requires JWT',
                 'auth_required': 'JWT Token',
-                'description': 'Listar usuarios según permisos del rol (Admin ve todos, Manager ve su departamento, Worker solo a sí mismo)',
                 'permissions': {
                     'admin': 'Ver todos los usuarios',
                     'manager': 'Ver usuarios de su departamento',
@@ -414,37 +397,23 @@ def home():
             'create': {
                 'url': f'{base_url}/api/users',
                 'method': 'POST',
-                'browsable': '❌ NO - Requires JWT + Admin',
+                'browsable': '❌ NO - Requires JWT',
                 'auth_required': 'JWT Token (Admin only)',
-                'description': 'Crear nuevo usuario (solo administradores)',
-                'body_example': {
-                    'name': 'Juan Pérez',
-                    'email': 'juan@company.com',
-                    'password': 'securepass123',
-                    'role': 'worker',
-                    'department': 'Operations'
-                }
+                'description': 'Crear nuevo usuario'
             },
             'update': {
                 'url': f'{base_url}/api/users/:id',
                 'method': 'PUT',
-                'browsable': '❌ NO - Requires JWT + Admin',
+                'browsable': '❌ NO - Requires JWT',
                 'auth_required': 'JWT Token (Admin only)',
-                'description': 'Actualizar usuario existente (no puedes editar tu propio usuario)',
-                'body_example': {
-                    'name': 'Juan Pérez Updated',
-                    'email': 'juan.new@company.com',
-                    'role': 'manager',
-                    'department': 'Sales',
-                    'password': 'newpass123 (optional)'
-                }
+                'description': 'Actualizar usuario (no puedes editar tu propio usuario)'
             },
             'delete': {
                 'url': f'{base_url}/api/users/:id',
                 'method': 'DELETE',
-                'browsable': '❌ NO - Requires JWT + Admin',
+                'browsable': '❌ NO - Requires JWT',
                 'auth_required': 'JWT Token (Admin only)',
-                'description': 'Eliminar usuario y todos sus registros (no puedes eliminar tu propio usuario)'
+                'description': 'Eliminar usuario y todos sus registros'
             }
         },
         'time_entries': {
@@ -453,7 +422,6 @@ def home():
                 'method': 'GET',
                 'browsable': '❌ NO - Requires JWT',
                 'auth_required': 'JWT Token',
-                'description': 'Listar registros de tiempo según permisos',
                 'permissions': {
                     'admin': 'Ver todos los registros',
                     'manager': 'Ver registros de su departamento',
@@ -465,168 +433,30 @@ def home():
                 'method': 'POST',
                 'browsable': '❌ NO - Requires JWT',
                 'auth_required': 'JWT Token',
-                'description': 'Crear o actualizar registro de tiempo (check-in/check-out)',
-                'body_example': {
-                    'user_id': 3,
-                    'date': '2025-10-08',
-                    'check_in': '2025-10-08T08:00:00.000',
-                    'check_out': '2025-10-08T17:00:00.000',
-                    'notes': 'Jornada completa'
-                }
+                'description': 'Crear o actualizar registro de tiempo (check-in/check-out)'
             },
             'update': {
                 'url': f'{base_url}/api/time-entries/:id',
                 'method': 'PUT',
-                'browsable': '❌ NO - Requires JWT + Manager/Admin',
+                'browsable': '❌ NO - Requires JWT',
                 'auth_required': 'JWT Token (Manager/Admin only)',
-                'description': 'Actualizar registro de tiempo (Managers no pueden editar sus propios registros)',
-                'restrictions': {
-                    'manager': 'No puede editar sus propios registros, solo los de su equipo',
-                    'admin': 'Puede editar todos los registros'
-                }
+                'description': 'Actualizar registro (Managers no pueden editar sus propios registros)'
             },
             'delete': {
                 'url': f'{base_url}/api/time-entries/:id',
                 'method': 'DELETE',
-                'browsable': '❌ NO - Requires JWT + Manager/Admin',
+                'browsable': '❌ NO - Requires JWT',
                 'auth_required': 'JWT Token (Manager/Admin only)',
-                'description': 'Eliminar registro de tiempo (Managers no pueden eliminar sus propios registros)'
+                'description': 'Eliminar registro (Managers no pueden eliminar sus propios registros)'
             }
         }
     }
     
-    # =================== EJEMPLOS DE CURL ===================
-    response_data['curl_examples'] = {
-        'note': '💻 Ejemplos de uso desde la terminal',
-        
-        '1_login': {
-            'description': 'Login y obtener token JWT',
-            'command': f'''curl -X POST {base_url}/api/auth/login \\
-  -H "Content-Type: application/json" \\
-  -d '{{"email":"admin@timetracer.com","password":"your_password"}}\''''
-        },
-        
-        '2_save_token': {
-            'description': 'Guardar token en variable de entorno',
-            'command': f'''TOKEN=$(curl -s -X POST {base_url}/api/auth/login \\
-  -H "Content-Type: application/json" \\
-  -d '{{"email":"admin@timetracer.com","password":"your_password"}}' \\
-  | jq -r '.access_token')'''
-        },
-        
-        '3_get_users': {
-            'description': 'Listar usuarios usando el token',
-            'command': f'''curl {base_url}/api/users \\
-  -H "Authorization: Bearer $TOKEN"'''
-        },
-        
-        '4_get_current_user': {
-            'description': 'Ver información del usuario actual',
-            'command': f'''curl {base_url}/api/auth/me \\
-  -H "Authorization: Bearer $TOKEN"'''
-        },
-        
-        '5_get_time_entries': {
-            'description': 'Listar registros de tiempo',
-            'command': f'''curl {base_url}/api/time-entries \\
-  -H "Authorization: Bearer $TOKEN"'''
-        },
-        
-        '6_create_user': {
-            'description': 'Crear nuevo usuario (solo admin)',
-            'command': f'''curl -X POST {base_url}/api/users \\
-  -H "Authorization: Bearer $TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{{"name":"Nuevo Usuario","email":"nuevo@company.com","password":"pass123","role":"worker","department":"IT"}}\''''
-        },
-        
-        '7_create_time_entry': {
-            'description': 'Crear registro de tiempo (check-in)',
-            'command': f'''curl -X POST {base_url}/api/time-entries \\
-  -H "Authorization: Bearer $TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{{"user_id":3,"date":"2025-10-08","check_in":"2025-10-08T08:00:00.000","check_out":null}}\''''
-        },
-        
-        '8_complete_workflow': {
-            'description': 'Flujo completo: Login → Listar usuarios → Crear registro',
-            'bash_script': f'''#!/bin/bash
-
-# 1. Login y guardar token
-echo "🔐 Haciendo login..."
-TOKEN=$(curl -s -X POST {base_url}/api/auth/login \\
-  -H "Content-Type: application/json" \\
-  -d '{{"email":"admin@timetracer.com","password":"your_password"}}' \\
-  | jq -r '.access_token')
-
-echo "✅ Token obtenido: ${{TOKEN:0:20}}..."
-
-# 2. Ver información del usuario actual
-echo "\\n👤 Usuario actual:"
-curl -s {base_url}/api/auth/me \\
-  -H "Authorization: Bearer $TOKEN" \\
-  | jq '.'
-
-# 3. Listar usuarios
-echo "\\n👥 Usuarios:"
-curl -s {base_url}/api/users \\
-  -H "Authorization: Bearer $TOKEN" \\
-  | jq '.users[] | {{id, name, role, department}}'
-
-# 4. Listar registros de tiempo
-echo "\\n⏰ Registros de tiempo:"
-curl -s {base_url}/api/time-entries \\
-  -H "Authorization: Bearer $TOKEN" \\
-  | jq '.time_entries[] | {{id, user_id, date, check_in, check_out}}'
-'''
-        }
-    }
-    
-    # =================== INFORMACIÓN ADICIONAL ===================
-    response_data['additional_info'] = {
-        'frontend_url': 'https://time-tracer-bottega-front.onrender.com',
-        'github_repo': 'https://github.com/diegogerwig/devCamp_BOTTEGA_Full_Stack_PROJECT',
-        'testing_tools': {
-            'recommended': [
-                'Postman - https://www.postman.com/',
-                'Thunder Client (VS Code Extension)',
-                'curl (Terminal)',
-                'HTTPie - https://httpie.io/'
-            ],
-            'browser_extensions': [
-                'ModHeader - Para añadir headers Authorization',
-                'Requestly - Para modificar requests'
-            ]
-        },
-        'roles_and_permissions': {
-            'admin': {
-                'description': 'Acceso completo al sistema',
-                'can_do': [
-                    'Ver todos los usuarios y registros',
-                    'Crear, editar y eliminar usuarios',
-                    'Editar y eliminar cualquier registro de tiempo',
-                    'Acceder a todas las estadísticas'
-                ]
-            },
-            'manager': {
-                'description': 'Gestión de su departamento',
-                'can_do': [
-                    'Ver usuarios de su departamento',
-                    'Ver y editar registros de su equipo',
-                    'No puede editar/eliminar sus propios registros',
-                    'Registrar su propia jornada'
-                ]
-            },
-            'worker': {
-                'description': 'Gestión de su propia jornada',
-                'can_do': [
-                    'Ver solo su propia información',
-                    'Registrar check-in y check-out',
-                    'Ver su historial de registros',
-                    'No puede editar ni eliminar registros'
-                ]
-            }
-        }
+    # Información adicional
+    response_data['links'] = {
+        'frontend': 'https://time-tracer-bottega-front.onrender.com',
+        'github': 'https://github.com/diegogerwig/devCamp_BOTTEGA_Full_Stack_PROJECT',
+        'documentation': 'Ver README.md para ejemplos de uso con curl, Postman y más'
     }
     
     # Usar json.dumps para preservar el orden
