@@ -220,7 +220,7 @@ def favicon():
 
 @app.route('/')
 def home():
-    """Root endpoint - Estadísticas en vivo + Documentación de la API"""
+    """Root endpoint - Estadísticas en vivo + Documentación completa de la API"""
     
     # Estructura base de la respuesta
     response_data = {
@@ -228,9 +228,13 @@ def home():
         'version': '1.0.0',
         'status': 'online',
         'database': {},
-        'endpoints': {}
+        'public_endpoints': {},
+        'authentication': {},
+        'protected_endpoints': {},
+        'curl_examples': {}
     }
     
+    # =================== ESTADÍSTICAS DE BASE DE DATOS ===================
     if db:
         try:
             # Verificar conexión
@@ -317,98 +321,310 @@ def home():
             'status': 'disconnected'
         }
     
-    # Construir documentación de endpoints
+    # =================== DOCUMENTACIÓN DE ENDPOINTS ===================
     base_url = request.url_root.rstrip('/')
     
-    response_data['endpoints'] = {
+    # Endpoints públicos (navegables en el navegador)
+    response_data['public_endpoints'] = {
+        'note': '✅ Estos endpoints se pueden visitar directamente en el navegador',
+        'root': {
+            'url': f'{base_url}/',
+            'method': 'GET',
+            'browsable': '✅ YES',
+            'auth_required': 'No',
+            'description': 'Esta página - Estadísticas en vivo y documentación',
+            'try_now': f'{base_url}/'
+        },
         'health': {
             'url': f'{base_url}/api/health',
             'method': 'GET',
-            'auth': 'No',
-            'description': 'Health check endpoint para monitoring'
+            'browsable': '✅ YES',
+            'auth_required': 'No',
+            'description': 'Health check del servidor para monitoring',
+            'try_now': f'{base_url}/api/health'
+        },
+        'docs': {
+            'url': f'{base_url}/api/docs',
+            'method': 'GET',
+            'browsable': '✅ YES',
+            'auth_required': 'No',
+            'description': 'Documentación detallada de la API',
+            'try_now': f'{base_url}/api/docs'
+        }
+    }
+    
+    # Endpoints de autenticación (requieren POST)
+    response_data['authentication'] = {
+        'note': '⚠️ Estos endpoints requieren método POST (no se pueden visitar en navegador)',
+        'login': {
+            'url': f'{base_url}/api/auth/login',
+            'method': 'POST',
+            'browsable': '❌ NO - Requires POST',
+            'auth_required': 'No',
+            'description': 'Autenticación de usuarios - Devuelve JWT token',
+            'body_example': {
+                'email': 'admin@timetracer.com',
+                'password': 'your_password'
+            },
+            'response_example': {
+                'message': 'Login exitoso',
+                'access_token': 'eyJ0eXAiOiJKV1QiLCJhbGc...',
+                'user': {
+                    'id': 1,
+                    'name': 'Admin TimeTracer',
+                    'email': 'admin@timetracer.com',
+                    'role': 'admin',
+                    'department': 'IT'
+                }
+            }
+        }
+    }
+    
+    # Endpoints protegidos (requieren JWT token)
+    response_data['protected_endpoints'] = {
+        'note': '🔒 Estos endpoints requieren JWT Token en el header Authorization',
+        'how_to_use': {
+            'step_1': 'Hacer POST a /api/auth/login con credenciales válidas',
+            'step_2': 'Copiar el access_token de la respuesta',
+            'step_3': 'Añadir header: Authorization: Bearer <token>',
+            'step_4': 'Usar Postman, Thunder Client, curl o tu frontend'
         },
         'auth': {
-            'login': {
-                'url': f'{base_url}/api/auth/login',
-                'method': 'POST',
-                'auth': 'No',
-                'description': 'Autenticación de usuarios',
-                'body': {
-                    'email': 'string',
-                    'password': 'string'
-                }
-            },
             'me': {
                 'url': f'{base_url}/api/auth/me',
                 'method': 'GET',
-                'auth': 'JWT Token',
-                'description': 'Obtener información del usuario actual'
+                'browsable': '❌ NO - Requires JWT',
+                'auth_required': 'JWT Token',
+                'description': 'Obtener información del usuario actual autenticado'
             }
         },
         'users': {
             'list': {
                 'url': f'{base_url}/api/users',
                 'method': 'GET',
-                'auth': 'JWT Token',
-                'description': 'Listar usuarios según permisos del rol'
+                'browsable': '❌ NO - Requires JWT',
+                'auth_required': 'JWT Token',
+                'description': 'Listar usuarios según permisos del rol (Admin ve todos, Manager ve su departamento, Worker solo a sí mismo)',
+                'permissions': {
+                    'admin': 'Ver todos los usuarios',
+                    'manager': 'Ver usuarios de su departamento',
+                    'worker': 'Ver solo su propio usuario'
+                }
             },
             'create': {
                 'url': f'{base_url}/api/users',
                 'method': 'POST',
-                'auth': 'JWT Token (Admin only)',
-                'description': 'Crear nuevo usuario',
-                'body': {
-                    'name': 'string',
-                    'email': 'string',
-                    'password': 'string',
-                    'role': 'admin|manager|worker',
-                    'department': 'string'
+                'browsable': '❌ NO - Requires JWT + Admin',
+                'auth_required': 'JWT Token (Admin only)',
+                'description': 'Crear nuevo usuario (solo administradores)',
+                'body_example': {
+                    'name': 'Juan Pérez',
+                    'email': 'juan@company.com',
+                    'password': 'securepass123',
+                    'role': 'worker',
+                    'department': 'Operations'
                 }
             },
             'update': {
                 'url': f'{base_url}/api/users/:id',
                 'method': 'PUT',
-                'auth': 'JWT Token (Admin only)',
-                'description': 'Actualizar usuario existente'
+                'browsable': '❌ NO - Requires JWT + Admin',
+                'auth_required': 'JWT Token (Admin only)',
+                'description': 'Actualizar usuario existente (no puedes editar tu propio usuario)',
+                'body_example': {
+                    'name': 'Juan Pérez Updated',
+                    'email': 'juan.new@company.com',
+                    'role': 'manager',
+                    'department': 'Sales',
+                    'password': 'newpass123 (optional)'
+                }
             },
             'delete': {
                 'url': f'{base_url}/api/users/:id',
                 'method': 'DELETE',
-                'auth': 'JWT Token (Admin only)',
-                'description': 'Eliminar usuario'
+                'browsable': '❌ NO - Requires JWT + Admin',
+                'auth_required': 'JWT Token (Admin only)',
+                'description': 'Eliminar usuario y todos sus registros (no puedes eliminar tu propio usuario)'
             }
         },
         'time_entries': {
             'list': {
                 'url': f'{base_url}/api/time-entries',
                 'method': 'GET',
-                'auth': 'JWT Token',
-                'description': 'Listar registros según permisos del rol'
+                'browsable': '❌ NO - Requires JWT',
+                'auth_required': 'JWT Token',
+                'description': 'Listar registros de tiempo según permisos',
+                'permissions': {
+                    'admin': 'Ver todos los registros',
+                    'manager': 'Ver registros de su departamento',
+                    'worker': 'Ver solo sus propios registros'
+                }
             },
             'create': {
                 'url': f'{base_url}/api/time-entries',
                 'method': 'POST',
-                'auth': 'JWT Token',
-                'description': 'Crear o actualizar registro de tiempo',
-                'body': {
-                    'user_id': 'integer',
-                    'date': 'YYYY-MM-DD',
-                    'check_in': 'ISO datetime',
-                    'check_out': 'ISO datetime (optional)',
-                    'notes': 'string (optional)'
+                'browsable': '❌ NO - Requires JWT',
+                'auth_required': 'JWT Token',
+                'description': 'Crear o actualizar registro de tiempo (check-in/check-out)',
+                'body_example': {
+                    'user_id': 3,
+                    'date': '2025-10-08',
+                    'check_in': '2025-10-08T08:00:00.000',
+                    'check_out': '2025-10-08T17:00:00.000',
+                    'notes': 'Jornada completa'
                 }
             },
             'update': {
                 'url': f'{base_url}/api/time-entries/:id',
                 'method': 'PUT',
-                'auth': 'JWT Token (Manager/Admin only)',
-                'description': 'Actualizar registro de tiempo'
+                'browsable': '❌ NO - Requires JWT + Manager/Admin',
+                'auth_required': 'JWT Token (Manager/Admin only)',
+                'description': 'Actualizar registro de tiempo (Managers no pueden editar sus propios registros)',
+                'restrictions': {
+                    'manager': 'No puede editar sus propios registros, solo los de su equipo',
+                    'admin': 'Puede editar todos los registros'
+                }
             },
             'delete': {
                 'url': f'{base_url}/api/time-entries/:id',
                 'method': 'DELETE',
-                'auth': 'JWT Token (Manager/Admin only)',
-                'description': 'Eliminar registro de tiempo'
+                'browsable': '❌ NO - Requires JWT + Manager/Admin',
+                'auth_required': 'JWT Token (Manager/Admin only)',
+                'description': 'Eliminar registro de tiempo (Managers no pueden eliminar sus propios registros)'
+            }
+        }
+    }
+    
+    # =================== EJEMPLOS DE CURL ===================
+    response_data['curl_examples'] = {
+        'note': '💻 Ejemplos de uso desde la terminal',
+        
+        '1_login': {
+            'description': 'Login y obtener token JWT',
+            'command': f'''curl -X POST {base_url}/api/auth/login \\
+  -H "Content-Type: application/json" \\
+  -d '{{"email":"admin@timetracer.com","password":"your_password"}}\''''
+        },
+        
+        '2_save_token': {
+            'description': 'Guardar token en variable de entorno',
+            'command': f'''TOKEN=$(curl -s -X POST {base_url}/api/auth/login \\
+  -H "Content-Type: application/json" \\
+  -d '{{"email":"admin@timetracer.com","password":"your_password"}}' \\
+  | jq -r '.access_token')'''
+        },
+        
+        '3_get_users': {
+            'description': 'Listar usuarios usando el token',
+            'command': f'''curl {base_url}/api/users \\
+  -H "Authorization: Bearer $TOKEN"'''
+        },
+        
+        '4_get_current_user': {
+            'description': 'Ver información del usuario actual',
+            'command': f'''curl {base_url}/api/auth/me \\
+  -H "Authorization: Bearer $TOKEN"'''
+        },
+        
+        '5_get_time_entries': {
+            'description': 'Listar registros de tiempo',
+            'command': f'''curl {base_url}/api/time-entries \\
+  -H "Authorization: Bearer $TOKEN"'''
+        },
+        
+        '6_create_user': {
+            'description': 'Crear nuevo usuario (solo admin)',
+            'command': f'''curl -X POST {base_url}/api/users \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{{"name":"Nuevo Usuario","email":"nuevo@company.com","password":"pass123","role":"worker","department":"IT"}}\''''
+        },
+        
+        '7_create_time_entry': {
+            'description': 'Crear registro de tiempo (check-in)',
+            'command': f'''curl -X POST {base_url}/api/time-entries \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{{"user_id":3,"date":"2025-10-08","check_in":"2025-10-08T08:00:00.000","check_out":null}}\''''
+        },
+        
+        '8_complete_workflow': {
+            'description': 'Flujo completo: Login → Listar usuarios → Crear registro',
+            'bash_script': f'''#!/bin/bash
+
+# 1. Login y guardar token
+echo "🔐 Haciendo login..."
+TOKEN=$(curl -s -X POST {base_url}/api/auth/login \\
+  -H "Content-Type: application/json" \\
+  -d '{{"email":"admin@timetracer.com","password":"your_password"}}' \\
+  | jq -r '.access_token')
+
+echo "✅ Token obtenido: ${{TOKEN:0:20}}..."
+
+# 2. Ver información del usuario actual
+echo "\\n👤 Usuario actual:"
+curl -s {base_url}/api/auth/me \\
+  -H "Authorization: Bearer $TOKEN" \\
+  | jq '.'
+
+# 3. Listar usuarios
+echo "\\n👥 Usuarios:"
+curl -s {base_url}/api/users \\
+  -H "Authorization: Bearer $TOKEN" \\
+  | jq '.users[] | {{id, name, role, department}}'
+
+# 4. Listar registros de tiempo
+echo "\\n⏰ Registros de tiempo:"
+curl -s {base_url}/api/time-entries \\
+  -H "Authorization: Bearer $TOKEN" \\
+  | jq '.time_entries[] | {{id, user_id, date, check_in, check_out}}'
+'''
+        }
+    }
+    
+    # =================== INFORMACIÓN ADICIONAL ===================
+    response_data['additional_info'] = {
+        'frontend_url': 'https://time-tracer-bottega-front.onrender.com',
+        'github_repo': 'https://github.com/diegogerwig/devCamp_BOTTEGA_Full_Stack_PROJECT',
+        'testing_tools': {
+            'recommended': [
+                'Postman - https://www.postman.com/',
+                'Thunder Client (VS Code Extension)',
+                'curl (Terminal)',
+                'HTTPie - https://httpie.io/'
+            ],
+            'browser_extensions': [
+                'ModHeader - Para añadir headers Authorization',
+                'Requestly - Para modificar requests'
+            ]
+        },
+        'roles_and_permissions': {
+            'admin': {
+                'description': 'Acceso completo al sistema',
+                'can_do': [
+                    'Ver todos los usuarios y registros',
+                    'Crear, editar y eliminar usuarios',
+                    'Editar y eliminar cualquier registro de tiempo',
+                    'Acceder a todas las estadísticas'
+                ]
+            },
+            'manager': {
+                'description': 'Gestión de su departamento',
+                'can_do': [
+                    'Ver usuarios de su departamento',
+                    'Ver y editar registros de su equipo',
+                    'No puede editar/eliminar sus propios registros',
+                    'Registrar su propia jornada'
+                ]
+            },
+            'worker': {
+                'description': 'Gestión de su propia jornada',
+                'can_do': [
+                    'Ver solo su propia información',
+                    'Registrar check-in y check-out',
+                    'Ver su historial de registros',
+                    'No puede editar ni eliminar registros'
+                ]
             }
         }
     }
@@ -419,7 +635,6 @@ def home():
     
     json_str = json.dumps(response_data, ensure_ascii=False, indent=2)
     return Response(json_str, mimetype='application/json')
-
 
 @app.route('/api/health')
 def health_check():
