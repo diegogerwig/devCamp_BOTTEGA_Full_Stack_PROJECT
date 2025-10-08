@@ -9,7 +9,7 @@ def token_required(f):
             verify_jwt_in_request()
             return f(*args, **kwargs)
         except Exception as e:
-            return jsonify({'message': 'Token inválido o expirado', 'error': str(e)}), 401
+            return jsonify({'message': 'Invalid or expired token', 'error': str(e)}), 401
     return decorated
 
 def admin_required(f):
@@ -19,10 +19,10 @@ def admin_required(f):
             verify_jwt_in_request()
             claims = get_jwt()
             if claims.get('role') != 'admin':
-                return jsonify({'message': 'Acceso denegado. Se requiere rol de administrador'}), 403
+                return jsonify({'message': 'Access denied. Admin role required'}), 403
             return f(*args, **kwargs)
         except Exception as e:
-            return jsonify({'message': 'Error de autenticación', 'error': str(e)}), 401
+            return jsonify({'message': 'Authentication error', 'error': str(e)}), 401
     return decorated
 
 def manager_or_admin_required(f):
@@ -32,8 +32,8 @@ def manager_or_admin_required(f):
             verify_jwt_in_request()
             claims = get_jwt()
             if claims.get('role') not in ['admin', 'manager']:
-                return jsonify({'message': 'Acceso denegado. Se requiere rol de manager o admin'}), 403
+                return jsonify({'message': 'Access denied. Manager or admin role required'}), 403
             return f(*args, **kwargs)
         except Exception as e:
-            return jsonify({'message': 'Error de autenticación', 'error': str(e)}), 401
+            return jsonify({'message': 'Authentication error', 'error': str(e)}), 401
     return decorated
