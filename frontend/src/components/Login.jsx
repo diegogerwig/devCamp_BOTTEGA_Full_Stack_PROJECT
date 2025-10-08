@@ -25,7 +25,7 @@ function Login() {
         errorTimeoutRef.current = setTimeout(() => {
             setError('');
             errorTimeoutRef.current = null;
-        }, 3000);
+        }, 5000);
     };
 
     const clearError = () => {
