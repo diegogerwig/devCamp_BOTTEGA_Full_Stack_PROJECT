@@ -10,12 +10,8 @@ function Login() {
 
 	// Función para validar formato de email
 	const isValidEmail = (email) => {
-		// Regex: debe tener texto antes de @, una sola @, texto después de @, un punto, y texto después del punto
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		
-		// Verificar que solo tenga una @
 		const atCount = (email.match(/@/g) || []).length;
-		
 		return emailRegex.test(email) && atCount === 1;
 	};
 
@@ -54,7 +50,6 @@ function Login() {
 			console.log('✅ Login exitoso, usuario:', result.user);
 			console.log('⏳ Esperando actualización del estado...');
 
-			// Pequeño delay para asegurar que React actualice
 			setTimeout(() => {
 				console.log('🔄 Estado debería estar actualizado ahora');
 			}, 100);
@@ -63,16 +58,29 @@ function Login() {
 		setLoading(false);
 	};
 
+	// 🔑 Credenciales de prueba desde variables de entorno
 	const demoCredentials = [
-		{ role: 'Admin', email: 'admin@timetracer.com', password: '••••••••••••' },
-		{ role: 'Manager', email: 'juan@company.com', password: '••••••••••••' },
-		{ role: 'Worker', email: 'maria@company.com', password: '••••••••••••' }
+		{ 
+			role: 'Admin', 
+			email: import.meta.env.VITE_DEMO_ADMIN_EMAIL || 'admin@timetracer.com',
+			password: import.meta.env.VITE_DEMO_ADMIN_PASSWORD || '' 
+		},
+		{ 
+			role: 'Manager', 
+			email: import.meta.env.VITE_DEMO_MANAGER_EMAIL || 'juan@company.com',
+			password: import.meta.env.VITE_DEMO_MANAGER_PASSWORD || '' 
+		},
+		{ 
+			role: 'Worker', 
+			email: import.meta.env.VITE_DEMO_WORKER_EMAIL || 'maria@company.com',
+			password: import.meta.env.VITE_DEMO_WORKER_PASSWORD || '' 
+		}
 	];
 
 	const fillCredentials = (demoEmail, demoPassword) => {
 		setEmail(demoEmail);
 		setPassword(demoPassword);
-		setError(''); // Limpiar errores al autocompletar
+		setError('');
 	};
 
 	return (
@@ -106,7 +114,7 @@ function Login() {
 								value={email}
 								onChange={(e) => {
 									setEmail(e.target.value);
-									setError(''); // Limpiar error al escribir
+									setError('');
 								}}
 								className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 								placeholder="tu@email.com"
@@ -123,7 +131,7 @@ function Login() {
 								value={password}
 								onChange={(e) => {
 									setPassword(e.target.value);
-									setError(''); // Limpiar error al escribir
+									setError('');
 								}}
 								className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 								placeholder="••••••••"
@@ -175,15 +183,27 @@ function Login() {
 						{demoCredentials.map((demo, index) => (
 							<button
 								key={index}
-								onClick={() => fillCredentials(demo.email)}
-								className="w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-left transition-colors"
+								onClick={() => fillCredentials(demo.email, demo.password)}
+								disabled={!demo.password}
+								className={`w-full p-3 rounded-lg text-left transition-colors ${
+									demo.password 
+										? 'bg-gray-700 hover:bg-gray-600 cursor-pointer' 
+										: 'bg-gray-700/50 cursor-not-allowed opacity-50'
+								}`}
 							>
 								<div className="flex justify-between items-center">
 									<div>
 										<div className="text-white font-medium">{demo.role}</div>
 										<div className="text-gray-400 text-sm">{demo.email}</div>
+										{!demo.password && (
+											<div className="text-yellow-400 text-xs mt-1">
+												⚠️ Configura .env para usar esta cuenta
+											</div>
+										)}
 									</div>
-									<span className="text-blue-400 text-sm">Usar →</span>
+									{demo.password && (
+										<span className="text-blue-400 text-sm">Usar →</span>
+									)}
 								</div>
 							</button>
 						))}
