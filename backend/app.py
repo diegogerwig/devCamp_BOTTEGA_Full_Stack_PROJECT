@@ -887,7 +887,7 @@ def get_time_entries():
     #     'time_entries': filtered_entries,
     #     'total': len(filtered_entries),
     #     'source': 'mock'
-    })
+    # })
 
 @app.route('/api/time-entries', methods=['POST'])
 @token_required
