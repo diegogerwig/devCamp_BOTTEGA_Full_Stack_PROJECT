@@ -559,7 +559,7 @@ def login():
                     'user': user.to_dict()
                 }), 200
             else:
-                return jsonify({'message': 'Credenciales inválidas'}), 401
+                return jsonify({'message': 'Invalid credentials'}), 401
                 
         except Exception as e:
             print(f"Database error in login: {e}")
@@ -586,8 +586,8 @@ def login():
             'access_token': access_token,
             'user': user_copy
         }), 200
-    
-    return jsonify({'message': 'Credenciales inválidas'}), 401
+
+    return jsonify({'message': 'Invalid credentials'}), 401
 
 @app.route('/api/auth/me', methods=['GET'])
 @token_required
