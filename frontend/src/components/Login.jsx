@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 function Login() {
@@ -7,6 +7,7 @@ function Login() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
+    const errorTimeoutRef = useRef(null); 
 
     const isValidEmail = (email) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -14,43 +15,41 @@ function Login() {
         return emailRegex.test(email) && atCount === 1;
     };
 
+    const showError = (message) => {
+        if (errorTimeoutRef.current) {
+            clearTimeout(errorTimeoutRef.current);
+        }
+        
+        setError(message);
+        
+        errorTimeoutRef.current = setTimeout(() => {
+            setError('');
+            errorTimeoutRef.current = null;
+        }, 3000);
+    };
+
+    const clearError = () => {
+        if (errorTimeoutRef.current) {
+            clearTimeout(errorTimeoutRef.current);
+            errorTimeoutRef.current = null;
+        }
+        setError('');
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (!isValidEmail(email)) {
-            setError('Please enter a valid email (example@domain.com)');
+            showError('Please enter a valid email (example@domain.com)');
             return;
         }
 
         setLoading(true);
 
-        console.log('🔐 Attempting login with:', email);
-        console.log('📍 State before login:', {
-            isAuthenticated: 'pending',
-            token: localStorage.getItem('token') ? 'exists' : 'does not exist',
-            user: localStorage.getItem('user') ? 'exists' : 'does not exist'
-        });
-
         const result = await login(email, password);
 
-        console.log('📥 Login result:', result);
-        console.log('📍 State after login:', {
-            success: result.success,
-            token: localStorage.getItem('token') ? 'exists' : 'does not exist',
-            user: localStorage.getItem('user') ? 'exists' : 'does not exist'
-        });
-
         if (!result.success) {
-			setError(result.message);
-			setTimeout(() => setError(''), 3000);
-            console.error('❌ Login failed:', result.message);
-        } else {
-            console.log('✅ Login successful, user:', result.user);
-            console.log('⏳ Waiting for state update...');
-
-            setTimeout(() => {
-                console.log('🔄 State should be updated now');
-            }, 100);
+            showError(result.message);
         }
 
         setLoading(false);
@@ -77,7 +76,7 @@ function Login() {
     const fillCredentials = (demoEmail, demoPassword) => {
         setEmail(demoEmail);
         setPassword(demoPassword);
-        setError('');
+        clearError();
     };
 
     return (
@@ -109,9 +108,7 @@ function Login() {
                             <input
                                 type="email"
                                 value={email}
-                                onChange={(e) => {
-                                    setEmail(e.target.value);
-                                }}
+                                onChange={(e) => setEmail(e.target.value)}
                                 className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="your@email.com"
                                 required
@@ -125,9 +122,7 @@ function Login() {
                             <input
                                 type="password"
                                 value={password}
-                                onChange={(e) => {
-                                    setPassword(e.target.value);
-                                }}
+                                onChange={(e) => setPassword(e.target.value)}
                                 className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="••••••••"
                                 required
