@@ -64,9 +64,9 @@ function Login() {
 	};
 
 	const demoCredentials = [
-		{ role: 'Admin', email: 'admin@timetracer.com', password: 'adminadminQWERTY123' },
-		{ role: 'Manager', email: 'juan@company.com', password: 'managerjuanQWERTY123' },
-		{ role: 'Worker', email: 'maria@company.com', password: 'workermariaQWERTY123' }
+		{ role: 'Admin', email: 'admin@timetracer.com', password: '••••••••••••' },
+		{ role: 'Manager', email: 'juan@company.com', password: '••••••••••••' },
+		{ role: 'Worker', email: 'maria@company.com', password: '••••••••••••' }
 	];
 
 	const fillCredentials = (demoEmail, demoPassword) => {
@@ -175,7 +175,7 @@ function Login() {
 						{demoCredentials.map((demo, index) => (
 							<button
 								key={index}
-								onClick={() => fillCredentials(demo.email, demo.password)}
+								onClick={() => fillCredentials(demo.email)}
 								className="w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-left transition-colors"
 							>
 								<div className="flex justify-between items-center">
