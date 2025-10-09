@@ -1,5 +1,5 @@
 from datetime import datetime
-from date_utils import datetime_to_string
+from src.date_utils import datetime_to_string
 
 User = None
 TimeEntry = None
