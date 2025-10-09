@@ -324,30 +324,30 @@ def login():
         except Exception as e:
             print(f"Database error in login: {e}")
     
-    # Mock fallback
-    user = next((u for u in MOCK_USERS if u['email'] == email), None)
+    # # Mock fallback
+    # user = next((u for u in MOCK_USERS if u['email'] == email), None)
     
-    if user and bcrypt.check_password_hash(user['password'], password):
-        user_copy = user.copy()
-        user_copy.pop('password')
+    # if user and bcrypt.check_password_hash(user['password'], password):
+    #     user_copy = user.copy()
+    #     user_copy.pop('password')
         
-        access_token = create_access_token(
-            identity=str(user['id']),
-            additional_claims={
-                'email': user['email'],
-                'role': user['role'],
-                'name': user['name'],
-                'department': user['department']
-            }
-        )
+    #     access_token = create_access_token(
+    #         identity=str(user['id']),
+    #         additional_claims={
+    #             'email': user['email'],
+    #             'role': user['role'],
+    #             'name': user['name'],
+    #             'department': user['department']
+    #         }
+    #     )
         
-        return jsonify({
-            'message': 'Login successful (mock)',
-            'access_token': access_token,
-            'user': user_copy
-        }), 200
+    #     return jsonify({
+    #         'message': 'Login successful (mock)',
+    #         'access_token': access_token,
+    #         'user': user_copy
+    #     }), 200
 
-    return jsonify({'message': 'Invalid credentials'}), 401
+    # return jsonify({'message': 'Invalid credentials'}), 401
 
 @app.route('/api/auth/me', methods=['GET'])
 @token_required
@@ -364,17 +364,17 @@ def get_current_user():
         except Exception as e:
             print(f"Database error: {e}")
     
-    # Mock fallback
-    user_data = {
-        'id': int(user_id),
-        'email': claims.get('email'),
-        'role': claims.get('role'),
-        'name': claims.get('name'),
-        'department': claims.get('department'),
-        'status': 'active'
-    }
+    # # Mock fallback
+    # user_data = {
+    #     'id': int(user_id),
+    #     'email': claims.get('email'),
+    #     'role': claims.get('role'),
+    #     'name': claims.get('name'),
+    #     'department': claims.get('department'),
+    #     'status': 'active'
+    # }
     
-    return jsonify({'user': user_data}), 200
+    # return jsonify({'user': user_data}), 200
 
 # =================== USER MANAGEMENT ===================
 @app.route('/api/users', methods=['GET'])
@@ -403,21 +403,21 @@ def get_users():
         except Exception as e:
             print(f"Database error: {e}")
     
-    # Mock fallback
-    if user_role == 'admin':
-        filtered_users = MOCK_USERS
-    elif user_role == 'manager':
-        filtered_users = [u for u in MOCK_USERS if u['department'] == user_dept]
-    else:
-        filtered_users = [u for u in MOCK_USERS if u['id'] == user_id]
+    # # Mock fallback
+    # if user_role == 'admin':
+    #     filtered_users = MOCK_USERS
+    # elif user_role == 'manager':
+    #     filtered_users = [u for u in MOCK_USERS if u['department'] == user_dept]
+    # else:
+    #     filtered_users = [u for u in MOCK_USERS if u['id'] == user_id]
     
-    users_without_password = [{k: v for k, v in u.items() if k != 'password'} for u in filtered_users]
+    # users_without_password = [{k: v for k, v in u.items() if k != 'password'} for u in filtered_users]
     
-    return jsonify({
-        'users': users_without_password,
-        'total': len(users_without_password),
-        'source': 'mock'
-    })
+    # return jsonify({
+    #     'users': users_without_password,
+    #     'total': len(users_without_password),
+    #     'source': 'mock'
+    # })
 
 @app.route('/api/users', methods=['POST'])
 @admin_required
@@ -469,30 +469,30 @@ def create_user():
                 db.session.rollback()
                 return jsonify({'message': f'Database error: {str(e)}'}), 500
         
-        # Mock fallback
-        if any(u['email'] == data['email'] for u in MOCK_USERS):
-            return jsonify({'message': 'Email already registered'}), 400
+        # # Mock fallback
+        # if any(u['email'] == data['email'] for u in MOCK_USERS):
+        #     return jsonify({'message': 'Email already registered'}), 400
         
-        hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-        new_user = {
-            'id': len(MOCK_USERS) + 1,
-            'name': data['name'],
-            'email': data['email'],
-            'password': hashed_password,
-            'role': new_user_role,
-            'department': data['department'],
-            'status': 'active',
-            'created_at': datetime.now().isoformat()
-        }
-        MOCK_USERS.append(new_user)
+        # hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
+        # new_user = {
+        #     'id': len(MOCK_USERS) + 1,
+        #     'name': data['name'],
+        #     'email': data['email'],
+        #     'password': hashed_password,
+        #     'role': new_user_role,
+        #     'department': data['department'],
+        #     'status': 'active',
+        #     'created_at': datetime.now().isoformat()
+        # }
+        # MOCK_USERS.append(new_user)
         
-        user_copy = new_user.copy()
-        user_copy.pop('password')
+        # user_copy = new_user.copy()
+        # user_copy.pop('password')
         
-        return jsonify({
-            'message': 'User created (mock)',
-            'user': user_copy
-        }), 201
+        # return jsonify({
+        #     'message': 'User created (mock)',
+        #     'user': user_copy
+        # }), 201
         
     except Exception as e:
         return jsonify({'message': f'Server error: {str(e)}'}), 500
@@ -840,8 +840,6 @@ def delete_time_entry(entry_id):
         except Exception as e:
             db.session.rollback()
             return jsonify({'message': f'Error: {str(e)}'}), 500
-    
-    # entry_owner = next((u for u in MOCK_USERS if u['id'] == entry['user_id']), None)
     
     if user_role == 'manager':
         if entry['user_id'] == user_id:
