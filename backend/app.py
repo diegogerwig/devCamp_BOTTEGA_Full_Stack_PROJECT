@@ -86,7 +86,7 @@ if db:
         role = db.Column(db.String(20), nullable=False, default='worker')
         department = db.Column(db.String(50), nullable=False)
         status = db.Column(db.String(20), nullable=False, default='active')
-        created_at = db.Column(db.DateTime, default=datetime.now)  # ✅ CHANGED: datetime.now instead of utcnow
+        created_at = db.Column(db.DateTime, default=datetime.now)
         
         def to_dict(self):
             return {
@@ -109,7 +109,7 @@ if db:
         check_out = db.Column(db.DateTime, nullable=True)
         total_hours = db.Column(db.Float, nullable=True)
         notes = db.Column(db.Text, nullable=True)
-        created_at = db.Column(db.DateTime, default=datetime.now)  # ✅ CHANGED: datetime.now instead of utcnow
+        created_at = db.Column(db.DateTime, default=datetime.now)
         
         def to_dict(self):
             return {
