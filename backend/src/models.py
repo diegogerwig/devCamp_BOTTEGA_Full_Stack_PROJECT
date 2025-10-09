@@ -1,8 +1,12 @@
 from datetime import datetime
 from date_utils import datetime_to_string
 
+User = None
+TimeEntry = None
+
 def init_models(db):
-    class User(db.Model):
+    global User, TimeEntry
+    class UserModel(db.Model):
         __tablename__ = 'users'
         
         id = db.Column(db.Integer, primary_key=True)
@@ -25,7 +29,7 @@ def init_models(db):
                 'created_at': self.created_at.isoformat()
             }
 
-    class TimeEntry(db.Model):
+    class TimeEntryModel(db.Model):
         __tablename__ = 'time_entries'
         
         id = db.Column(db.Integer, primary_key=True)
@@ -49,4 +53,6 @@ def init_models(db):
                 'created_at': self.created_at.isoformat()
             }
     
+    User = UserModel
+    TimeEntry = TimeEntryModel
     return User, TimeEntry

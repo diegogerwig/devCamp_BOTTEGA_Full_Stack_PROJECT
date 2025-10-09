@@ -681,6 +681,13 @@ def get_time_entries():
             })
         except Exception as e:
             print(f"Database error: {e}")
+            return jsonify({'message': f'Database error: {str(e)}'}), 500
+
+    return jsonify({
+        'time_entries': [],
+        'total': 0,
+        'source': 'mock'
+    })
 
 @app.route('/api/time-entries', methods=['POST'])
 @token_required
