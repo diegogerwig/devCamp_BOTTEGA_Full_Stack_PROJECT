@@ -9,7 +9,6 @@ import {
 	calculateTotalHours
 } from '../utils/timeUtils';
 
-
 function AdminDashboard() {
 	const { user, logout } = useAuth();
 	const [users, setUsers] = useState([]);
