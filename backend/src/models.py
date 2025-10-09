@@ -1,9 +1,7 @@
 from datetime import datetime
+from date_utils import datetime_to_string
 
-def define_models(db):
-
-    from date_utils import datetime_to_string
-    
+def init_models(db):
     class User(db.Model):
         __tablename__ = 'users'
         
