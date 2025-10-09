@@ -27,16 +27,16 @@ bcrypt = Bcrypt(app)
 
 MOCK_USERS = get_mock_users()  
 
-# Handler for preflight requests (OPTIONS)
-@app.before_request
-def handle_preflight():
-    if request.method == "OPTIONS":
-        response = jsonify({'status': 'ok'})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-        response.headers.add('Access-Control-Max-Age', '3600')
-        return response, 200
+# # Handler for preflight requests (OPTIONS)
+# @app.before_request
+# def handle_preflight():
+#     if request.method == "OPTIONS":
+#         response = jsonify({'status': 'ok'})
+#         response.headers.add('Access-Control-Allow-Origin', '*')
+#         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+#         response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+#         response.headers.add('Access-Control-Max-Age', '3600')
+#         return response, 200
 
 # Database configuration
 DATABASE_URL = os.getenv('DATABASE_URL')
