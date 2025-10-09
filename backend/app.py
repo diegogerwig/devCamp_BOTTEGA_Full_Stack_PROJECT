@@ -32,8 +32,8 @@ MOCK_USERS = get_mock_users()
 # Database configuration
 DATABASE_URL = os.getenv('DATABASE_URL')
 db = None
-User = None
-TimeEntry = None
+# User = None
+# TimeEntry = None
 DATABASE_TYPE = 'Mock Data'
 IS_PERSISTENT = False
 
