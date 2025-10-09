@@ -245,7 +245,7 @@ def health_check():
 
 @app.route('/api/docs')
 def api_documentation():
-    """API documentation"""
+    """Complete API documentation"""
     base_url = request.url_root.rstrip('/')
     
     return jsonify({
@@ -290,7 +290,7 @@ def api_documentation():
 # =================== AUTHENTICATION ===================
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    """User login to obtain JWT token"""
+    """User login - returns JWT token"""
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')
@@ -298,41 +298,60 @@ def login():
     if not email or not password:
         return jsonify({'message': 'Email and password required'}), 400
     
-    if not db:
-        return jsonify({'message': 'Database not available'}), 503
+    if db:
+        try:
+            user = User.query.filter_by(email=email).first()
+            
+            if user and bcrypt.check_password_hash(user.users_password, password):
+                access_token = create_access_token(
+                    identity=str(user.id),
+                    additional_claims={
+                        'email': user.email,
+                        'role': user.role,
+                        'name': user.name,
+                        'department': user.department
+                    }
+                )
+                
+                return jsonify({
+                    'message': 'Login successful',
+                    'access_token': access_token,
+                    'user': user.to_dict()
+                }), 200
+            else:
+                return jsonify({'message': 'Invalid credentials'}), 401
+                
+        except Exception as e:
+            print(f"Database error in login: {e}")
     
-    try:
-        user = User.query.filter_by(email=email).first()
+    # Mock fallback
+    user = next((u for u in MOCK_USERS if u['email'] == email), None)
+    
+    if user and bcrypt.check_password_hash(user['password'], password):
+        user_copy = user.copy()
+        user_copy.pop('password')
         
-        if user and bcrypt.check_password_hash(user.users_password, password):
-            access_token = create_access_token(
-                identity=str(user.id),
-                additional_claims={
-                    'email': user.email,
-                    'role': user.role,
-                    'name': user.name,
-                    'department': user.department
-                }
-            )
-            
-            return jsonify({
-                'message': 'Login successful',
-                'access_token': access_token,
-                'user': user.to_dict()
-            }), 200
-        else:
-            return jsonify({'message': 'Invalid credentials'}), 401
-            
-    except Exception as e:
-        print(f"❌ Database error in login: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'message': 'Database error during login'}), 500
+        access_token = create_access_token(
+            identity=str(user['id']),
+            additional_claims={
+                'email': user['email'],
+                'role': user['role'],
+                'name': user['name'],
+                'department': user['department']
+            }
+        )
+        
+        return jsonify({
+            'message': 'Login successful (mock)',
+            'access_token': access_token,
+            'user': user_copy
+        }), 200
+
+    return jsonify({'message': 'Invalid credentials'}), 401
 
 @app.route('/api/auth/me', methods=['GET'])
 @token_required
 def get_current_user():
-    """Get current authenticated user details"""
     user_id = get_jwt_identity()
     claims = get_jwt()
     
@@ -344,6 +363,7 @@ def get_current_user():
         except Exception as e:
             print(f"Database error: {e}")
     
+    # Mock fallback
     user_data = {
         'id': int(user_id),
         'email': claims.get('email'),
@@ -359,7 +379,6 @@ def get_current_user():
 @app.route('/api/users', methods=['GET'])
 @token_required
 def get_users():
-    """Get a list of users based on role and department"""
     claims = get_jwt()
     user_role = claims.get('role')
     user_dept = claims.get('department')
@@ -382,26 +401,25 @@ def get_users():
         except Exception as e:
             print(f"Database error: {e}")
     
-    # # Mock fallback
-    # if user_role == 'admin':
-    #     filtered_users = MOCK_USERS
-    # elif user_role == 'manager':
-    #     filtered_users = [u for u in MOCK_USERS if u['department'] == user_dept]
-    # else:
-    #     filtered_users = [u for u in MOCK_USERS if u['id'] == user_id]
+    # Mock fallback
+    if user_role == 'admin':
+        filtered_users = MOCK_USERS
+    elif user_role == 'manager':
+        filtered_users = [u for u in MOCK_USERS if u['department'] == user_dept]
+    else:
+        filtered_users = [u for u in MOCK_USERS if u['id'] == user_id]
     
-    # users_without_password = [{k: v for k, v in u.items() if k != 'password'} for u in filtered_users]
+    users_without_password = [{k: v for k, v in u.items() if k != 'password'} for u in filtered_users]
     
-    # return jsonify({
-    #     'users': users_without_password,
-    #     'total': len(users_without_password),
-    #     'source': 'mock'
-    # })
+    return jsonify({
+        'users': users_without_password,
+        'total': len(users_without_password),
+        'source': 'mock'
+    })
 
 @app.route('/api/users', methods=['POST'])
 @admin_required
 def create_user():
-    """Create a new user (admin only)"""
     try:
         claims = get_jwt()
         user_role = claims.get('role')
@@ -448,30 +466,30 @@ def create_user():
                 db.session.rollback()
                 return jsonify({'message': f'Database error: {str(e)}'}), 500
         
-        # # Mock fallback
-        # if any(u['email'] == data['email'] for u in MOCK_USERS):
-        #     return jsonify({'message': 'Email already registered'}), 400
+        # Mock fallback
+        if any(u['email'] == data['email'] for u in MOCK_USERS):
+            return jsonify({'message': 'Email already registered'}), 400
         
-        # hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-        # new_user = {
-        #     'id': len(MOCK_USERS) + 1,
-        #     'name': data['name'],
-        #     'email': data['email'],
-        #     'password': hashed_password,
-        #     'role': new_user_role,
-        #     'department': data['department'],
-        #     'status': 'active',
-        #     'created_at': datetime.now().isoformat()
-        # }
-        # MOCK_USERS.append(new_user)
+        hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
+        new_user = {
+            'id': len(MOCK_USERS) + 1,
+            'name': data['name'],
+            'email': data['email'],
+            'password': hashed_password,
+            'role': new_user_role,
+            'department': data['department'],
+            'status': 'active',
+            'created_at': datetime.now().isoformat()
+        }
+        MOCK_USERS.append(new_user)
         
-        # user_copy = new_user.copy()
-        # user_copy.pop('password')
+        user_copy = new_user.copy()
+        user_copy.pop('password')
         
-        # return jsonify({
-        #     'message': 'User created (mock)',
-        #     'user': user_copy
-        # }), 201
+        return jsonify({
+            'message': 'User created (mock)',
+            'user': user_copy
+        }), 201
         
     except Exception as e:
         return jsonify({'message': f'Server error: {str(e)}'}), 500
@@ -479,7 +497,6 @@ def create_user():
 @app.route('/api/users/<int:user_id>', methods=['PUT'])
 @admin_required
 def update_user(user_id):
-    """Update an existing user (admin only)"""
     try:
         data = request.get_json()
         current_user_id = int(get_jwt_identity())
@@ -522,34 +539,34 @@ def update_user(user_id):
                 db.session.rollback()
                 return jsonify({'message': f'Database error: {str(e)}'}), 500
         
-        # # Mock fallback
-        # user = next((u for u in MOCK_USERS if u['id'] == user_id), None)
-        # if not user:
-        #     return jsonify({'message': 'User not found'}), 404
+        # Mock fallback
+        user = next((u for u in MOCK_USERS if u['id'] == user_id), None)
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
         
-        # if 'name' in data:
-        #     user['name'] = data['name']
-        # if 'email' in data:
-        #     if any(u['email'] == data['email'] and u['id'] != user_id for u in MOCK_USERS):
-        #         return jsonify({'message': 'Email already in use'}), 400
-        #     user['email'] = data['email']
-        # if 'role' in data:
-        #     user['role'] = data['role']
-        # if 'department' in data:
-        #     user['department'] = data['department']
-        # if 'status' in data:
-        #     user['status'] = data['status']
-        # if 'password' in data and data['password']:
-        #     hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-        #     user['password'] = hashed_password
+        if 'name' in data:
+            user['name'] = data['name']
+        if 'email' in data:
+            if any(u['email'] == data['email'] and u['id'] != user_id for u in MOCK_USERS):
+                return jsonify({'message': 'Email already in use'}), 400
+            user['email'] = data['email']
+        if 'role' in data:
+            user['role'] = data['role']
+        if 'department' in data:
+            user['department'] = data['department']
+        if 'status' in data:
+            user['status'] = data['status']
+        if 'password' in data and data['password']:
+            hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
+            user['password'] = hashed_password
         
-        # user_copy = user.copy()
-        # user_copy.pop('password', None)
+        user_copy = user.copy()
+        user_copy.pop('password', None)
         
-        # return jsonify({
-        #     'message': 'User updated (mock)',
-        #     'user': user_copy
-        # }), 200
+        return jsonify({
+            'message': 'User updated (mock)',
+            'user': user_copy
+        }), 200
         
     except Exception as e:
         return jsonify({'message': f'Server error: {str(e)}'}), 500
@@ -557,7 +574,6 @@ def update_user(user_id):
 @app.route('/api/users/<int:user_id>', methods=['DELETE'])
 @admin_required
 def delete_user(user_id):
-    """Delete a user (admin only)"""
     current_user_id = int(get_jwt_identity())
     
     if user_id == current_user_id:
@@ -579,22 +595,21 @@ def delete_user(user_id):
             db.session.rollback()
             return jsonify({'message': f'Error: {str(e)}'}), 500
     
-    # # Mock fallback
-    # user = next((u for u in MOCK_USERS if u['id'] == user_id), None)
-    # if not user:
-    #     return jsonify({'message': 'User not found'}), 404
+    # Mock fallback
+    user = next((u for u in MOCK_USERS if u['id'] == user_id), None)
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
     
-    # # global MOCK_TIME_ENTRIES
-    # # MOCK_TIME_ENTRIES = [e for e in MOCK_TIME_ENTRIES if e['user_id'] != user_id]
-    # MOCK_USERS.remove(user)
+    # global MOCK_TIME_ENTRIES
+    # MOCK_TIME_ENTRIES = [e for e in MOCK_TIME_ENTRIES if e['user_id'] != user_id]
+    MOCK_USERS.remove(user)
     
-    # return jsonify({'message': 'User deleted (mock)'}), 200
+    return jsonify({'message': 'User deleted (mock)'}), 200
 
 # =================== TIME ENTRIES ===================
 @app.route('/api/time-entries', methods=['GET'])
 @token_required
 def get_time_entries():
-    """Get time entries based on user role and department"""
     claims = get_jwt()
     user_role = claims.get('role')
     user_dept = claims.get('department')
@@ -629,7 +644,6 @@ def get_time_entries():
 @app.route('/api/time-entries', methods=['POST'])
 @token_required
 def create_time_entry():
-    """Create or update a time entry"""
     claims = get_jwt()
     user_role = claims.get('role')
     user_id = int(get_jwt_identity())
@@ -658,7 +672,7 @@ def create_time_entry():
             if not check_in:
                 return jsonify({'message': 'Invalid check-in date/time format'}), 400
             
-            # Check if user has an open entry
+            # 🔒 VALIDATION: Check if user has an open entry
             if not check_out:
                 open_entry = TimeEntry.query.filter_by(
                     user_id=target_user_id,
@@ -723,7 +737,6 @@ def create_time_entry():
 @app.route('/api/time-entries/<int:entry_id>', methods=['PUT'])
 @manager_or_admin_required
 def update_time_entry(entry_id):
-    """Update a time entry (manager/admin only)"""
     claims = get_jwt()
     user_role = claims.get('role')
     user_dept = claims.get('department')
@@ -791,7 +804,6 @@ def update_time_entry(entry_id):
 @app.route('/api/time-entries/<int:entry_id>', methods=['DELETE'])
 @manager_or_admin_required
 def delete_time_entry(entry_id):
-    """Delete a time entry (manager/admin only)"""
     claims = get_jwt()
     user_role = claims.get('role')
     user_dept = claims.get('department')
@@ -819,6 +831,8 @@ def delete_time_entry(entry_id):
         except Exception as e:
             db.session.rollback()
             return jsonify({'message': f'Error: {str(e)}'}), 500
+    
+    # entry_owner = next((u for u in MOCK_USERS if u['id'] == entry['user_id']), None)
     
     if user_role == 'manager':
         if entry['user_id'] == user_id:
