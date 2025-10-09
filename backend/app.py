@@ -319,8 +319,15 @@ def login():
             return jsonify({'message': 'Invalid credentials'}), 401
             
     except Exception as e:
-        print(f"Database error in login: {e}")
-        return jsonify({'message': 'Database error'}), 500
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ Database error in login: {e}")
+        print(f"❌ Full traceback:\n{error_trace}")
+        return jsonify({
+            'message': 'Database error',
+            'error': str(e),
+            'type': type(e).__name__
+        }), 500
 
 @app.route('/api/auth/me', methods=['GET'])
 @token_required
