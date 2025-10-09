@@ -327,27 +327,27 @@ def login():
     # # Mock fallback
     # user = next((u for u in MOCK_USERS if u['email'] == email), None)
     
-    # if user and bcrypt.check_password_hash(user['password'], password):
-    #     user_copy = user.copy()
-    #     user_copy.pop('password')
+    if user and bcrypt.check_password_hash(user['password'], password):
+        user_copy = user.copy()
+        user_copy.pop('password')
         
-    #     access_token = create_access_token(
-    #         identity=str(user['id']),
-    #         additional_claims={
-    #             'email': user['email'],
-    #             'role': user['role'],
-    #             'name': user['name'],
-    #             'department': user['department']
-    #         }
-    #     )
+        access_token = create_access_token(
+            identity=str(user['id']),
+            additional_claims={
+                'email': user['email'],
+                'role': user['role'],
+                'name': user['name'],
+                'department': user['department']
+            }
+        )
         
-    #     return jsonify({
-    #         'message': 'Login successful (mock)',
-    #         'access_token': access_token,
-    #         'user': user_copy
-    #     }), 200
+        return jsonify({
+            'message': 'Login successful (mock)',
+            'access_token': access_token,
+            'user': user_copy
+        }), 200
 
-    # return jsonify({'message': 'Invalid credentials'}), 401
+    return jsonify({'message': 'Invalid credentials'}), 401
 
 @app.route('/api/auth/me', methods=['GET'])
 @token_required
@@ -543,34 +543,34 @@ def update_user(user_id):
                 db.session.rollback()
                 return jsonify({'message': f'Database error: {str(e)}'}), 500
         
-        # Mock fallback
-        user = next((u for u in MOCK_USERS if u['id'] == user_id), None)
-        if not user:
-            return jsonify({'message': 'User not found'}), 404
+        # # Mock fallback
+        # user = next((u for u in MOCK_USERS if u['id'] == user_id), None)
+        # if not user:
+        #     return jsonify({'message': 'User not found'}), 404
         
-        if 'name' in data:
-            user['name'] = data['name']
-        if 'email' in data:
-            if any(u['email'] == data['email'] and u['id'] != user_id for u in MOCK_USERS):
-                return jsonify({'message': 'Email already in use'}), 400
-            user['email'] = data['email']
-        if 'role' in data:
-            user['role'] = data['role']
-        if 'department' in data:
-            user['department'] = data['department']
-        if 'status' in data:
-            user['status'] = data['status']
-        if 'password' in data and data['password']:
-            hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-            user['password'] = hashed_password
+        # if 'name' in data:
+        #     user['name'] = data['name']
+        # if 'email' in data:
+        #     if any(u['email'] == data['email'] and u['id'] != user_id for u in MOCK_USERS):
+        #         return jsonify({'message': 'Email already in use'}), 400
+        #     user['email'] = data['email']
+        # if 'role' in data:
+        #     user['role'] = data['role']
+        # if 'department' in data:
+        #     user['department'] = data['department']
+        # if 'status' in data:
+        #     user['status'] = data['status']
+        # if 'password' in data and data['password']:
+        #     hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
+        #     user['password'] = hashed_password
         
-        user_copy = user.copy()
-        user_copy.pop('password', None)
+        # user_copy = user.copy()
+        # user_copy.pop('password', None)
         
-        return jsonify({
-            'message': 'User updated (mock)',
-            'user': user_copy
-        }), 200
+        # return jsonify({
+        #     'message': 'User updated (mock)',
+        #     'user': user_copy
+        # }), 200
         
     except Exception as e:
         return jsonify({'message': f'Server error: {str(e)}'}), 500
@@ -600,16 +600,16 @@ def delete_user(user_id):
             db.session.rollback()
             return jsonify({'message': f'Error: {str(e)}'}), 500
     
-    # Mock fallback
-    user = next((u for u in MOCK_USERS if u['id'] == user_id), None)
-    if not user:
-        return jsonify({'message': 'User not found'}), 404
+    # # Mock fallback
+    # user = next((u for u in MOCK_USERS if u['id'] == user_id), None)
+    # if not user:
+    #     return jsonify({'message': 'User not found'}), 404
     
-    # global MOCK_TIME_ENTRIES
-    # MOCK_TIME_ENTRIES = [e for e in MOCK_TIME_ENTRIES if e['user_id'] != user_id]
-    MOCK_USERS.remove(user)
+    # # global MOCK_TIME_ENTRIES
+    # # MOCK_TIME_ENTRIES = [e for e in MOCK_TIME_ENTRIES if e['user_id'] != user_id]
+    # MOCK_USERS.remove(user)
     
-    return jsonify({'message': 'User deleted (mock)'}), 200
+    # return jsonify({'message': 'User deleted (mock)'}), 200
 
 # =================== TIME ENTRIES ===================
 @app.route('/api/time-entries', methods=['GET'])
@@ -679,7 +679,7 @@ def create_time_entry():
             if not check_in:
                 return jsonify({'message': 'Invalid check-in date/time format'}), 400
             
-            # 🔒 VALIDATION: Check if user has an open entry
+            # Check if user has an open entry
             if not check_out:
                 open_entry = TimeEntry.query.filter_by(
                     user_id=target_user_id,
