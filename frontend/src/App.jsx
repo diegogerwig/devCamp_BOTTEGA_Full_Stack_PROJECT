@@ -8,7 +8,7 @@ import WorkerDashboard from './views/WorkerDashboard';
 function AppContent() {
   const { user, loading, isAuthenticated } = useAuth();
 
-  console.log('🎭 AppContent - Estado actual:', {
+  console.log('AppContent - Current state:', {
     user: user?.name,
     role: user?.role,
     loading,
@@ -23,20 +23,20 @@ function AppContent() {
             <div className="animate-spin w-16 h-16 border-4 border-gray-600 border-t-blue-500 rounded-full mx-auto mb-6"></div>
             <div className="absolute inset-0 animate-ping w-16 h-16 border-4 border-gray-700 border-t-purple-500 rounded-full opacity-30"></div>
           </div>
-          <p className="text-xl text-gray-300">Cargando TimeTracer...</p>
+          <p className="text-xl text-gray-300">Loading TimeTracer...</p>
         </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    console.log('❌ No autenticado, mostrando Login');
+    console.log('❌ Not authenticated, showing Login');
     return <Login />;
   }
 
-  console.log('✅ Autenticado, mostrando dashboard para rol:', user?.role);
+  console.log('✅ Authenticated, showing dashboard for role:', user?.role);
 
-  // Renderizar dashboard según el rol del usuario
+  // Render dashboard based on user role
   switch (user?.role) {
     case 'admin':
       return <AdminDashboard />;
@@ -50,10 +50,10 @@ function AppContent() {
           <div className="text-center">
             <div className="text-6xl mb-4">⚠️</div>
             <h2 className="text-2xl font-bold text-red-400 mb-2">
-              Rol no reconocido
+              Role not recognized
             </h2>
             <p className="text-gray-400">
-              El rol "{user?.role}" no está configurado en el sistema
+              The role "{user?.role}" is not configured in the system
             </p>
           </div>
         </div>
