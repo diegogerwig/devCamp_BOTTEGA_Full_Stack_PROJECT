@@ -298,56 +298,36 @@ def login():
     if not email or not password:
         return jsonify({'message': 'Email and password required'}), 400
     
-    if db:
-        try:
-            user = User.query.filter_by(email=email).first()
+    if not db:
+        return jsonify({'message': 'Database not available'}), 503
+    
+    try:
+        user = User.query.filter_by(email=email).first()
+        
+        if user and bcrypt.check_password_hash(user.users_password, password):
+            access_token = create_access_token(
+                identity=str(user.id),
+                additional_claims={
+                    'email': user.email,
+                    'role': user.role,
+                    'name': user.name,
+                    'department': user.department
+                }
+            )
             
-            if user and bcrypt.check_password_hash(user.users_password, password):
-                access_token = create_access_token(
-                    identity=str(user.id),
-                    additional_claims={
-                        'email': user.email,
-                        'role': user.role,
-                        'name': user.name,
-                        'department': user.department
-                    }
-                )
-                
-                return jsonify({
-                    'message': 'Login successful',
-                    'access_token': access_token,
-                    'user': user.to_dict()
-                }), 200
-            else:
-                return jsonify({'message': 'Invalid credentials'}), 401
-                
-        except Exception as e:
-            print(f"Database error in login: {e}")
-    
-    # # Mock fallback
-    # user = next((u for u in MOCK_USERS if u['email'] == email), None)
-    
-    if user and bcrypt.check_password_hash(user['password'], password):
-        user_copy = user.copy()
-        user_copy.pop('password')
-        
-        access_token = create_access_token(
-            identity=str(user['id']),
-            additional_claims={
-                'email': user['email'],
-                'role': user['role'],
-                'name': user['name'],
-                'department': user['department']
-            }
-        )
-        
-        return jsonify({
-            'message': 'Login successful (mock)',
-            'access_token': access_token,
-            'user': user_copy
-        }), 200
-
-    return jsonify({'message': 'Invalid credentials'}), 401
+            return jsonify({
+                'message': 'Login successful',
+                'access_token': access_token,
+                'user': user.to_dict()
+            }), 200
+        else:
+            return jsonify({'message': 'Invalid credentials'}), 401
+            
+    except Exception as e:
+        print(f"❌ Database error in login: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': 'Database error during login'}), 500
 
 @app.route('/api/auth/me', methods=['GET'])
 @token_required
@@ -364,17 +344,16 @@ def get_current_user():
         except Exception as e:
             print(f"Database error: {e}")
     
-    # # Mock fallback
-    # user_data = {
-    #     'id': int(user_id),
-    #     'email': claims.get('email'),
-    #     'role': claims.get('role'),
-    #     'name': claims.get('name'),
-    #     'department': claims.get('department'),
-    #     'status': 'active'
-    # }
+    user_data = {
+        'id': int(user_id),
+        'email': claims.get('email'),
+        'role': claims.get('role'),
+        'name': claims.get('name'),
+        'department': claims.get('department'),
+        'status': 'active'
+    }
     
-    # return jsonify({'user': user_data}), 200
+    return jsonify({'user': user_data}), 200
 
 # =================== USER MANAGEMENT ===================
 @app.route('/api/users', methods=['GET'])
