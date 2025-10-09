@@ -6,7 +6,7 @@ import os
 import sys
 from datetime import datetime, timedelta
 from auth import token_required, admin_required, manager_or_admin_required
-from mock_data import get_mock_users  
+from backend.data.mock_data import get_mock_users  
 
 app = Flask(__name__)
 
