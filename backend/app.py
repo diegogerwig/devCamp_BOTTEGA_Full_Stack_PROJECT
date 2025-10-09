@@ -84,7 +84,7 @@ def favicon():
 @app.route('/')
 def home():
     """Root endpoint - Live statistics + API summary"""
-    
+
     # Base response structure
     response_data = {
         'app': 'TimeTracer API',
