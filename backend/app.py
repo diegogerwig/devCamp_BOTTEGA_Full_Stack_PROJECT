@@ -6,8 +6,8 @@ import os
 import sys
 from datetime import datetime, timedelta
 from auth import token_required, admin_required, manager_or_admin_required
-from data.mock_data import get_mock_users  
-# from src.init_db import init_database
+from data.mock_data import get_mock_users
+from src.init_db import init_database
 
 app = Flask(__name__)
 
@@ -67,6 +67,7 @@ if DATABASE_URL:
             db = SQLAlchemy(app)
             DATABASE_TYPE = 'PostgreSQL'
             IS_PERSISTENT = True
+            app.DATABASE_TYPE = DATABASE_TYPE  # Store for init_db module
             print("✅ PostgreSQL with pg8000 configured!")
         except ImportError as e:
             print(f"⚠️ pg8000 not available: {e}")
@@ -924,58 +925,7 @@ def delete_time_entry(entry_id):
     
     return jsonify({'message': 'Entry deleted (mock)'}), 200
 
-# =================== INITIALIZATION ===================
-def init_database():
-    if not db:
-        print("⚠️ No database, using mock data")
-        return
-    
-    try:
-        with app.app_context():
-            print("🔄 Checking database structure...")
-            try:
-                result = db.session.execute(db.text("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'users' 
-                    AND column_name = 'users_password'
-                """))
-                has_users_password = result.fetchone() is not None
-                
-                if not has_users_password:
-                    print("⚠️  Column 'users_password' does not exist, checking alternatives...")
-                    
-                    result = db.session.execute(db.text("""
-                        SELECT column_name 
-                        FROM information_schema.columns 
-                        WHERE table_name = 'users' 
-                        AND column_name = 'password'
-                    """))
-                    has_password = result.fetchone() is not None
-                    
-                    if has_password:
-                        print("✅ Renaming 'password' to 'users_password'...")
-                        db.session.execute(db.text("ALTER TABLE users RENAME COLUMN password TO users_password"))
-                        db.session.commit()
-                        print("✅ Migration completed!")
-                    else:
-                        print("⚠️  Creating column 'users_password'...")
-                        db.session.execute(db.text("ALTER TABLE users ADD COLUMN users_password VARCHAR(255)"))
-                        db.session.commit()
-                        print("✅ Column created!")
-                else:
-                    print("✅ Column 'users_password' exists correctly")
-                    
-            except Exception as e:
-                print(f"⚠️ Error in automatic migration: {e}")
-                
-            print(f"✅ Using existing {DATABASE_TYPE} tables")
-                
-    except Exception as e:
-        print(f"⚠️ Database init info: {e}")
-
-init_database()
-
+init_database(app, db)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
