@@ -6,8 +6,8 @@ import os
 import sys
 from datetime import datetime, timedelta
 from auth import token_required, admin_required, manager_or_admin_required
-from data.mock_data import get_mock_users
-from src.init_db import init_database
+from data.mock_data import get_mock_users  
+# from src.init_db import init_database
 
 app = Flask(__name__)
 
@@ -28,48 +28,22 @@ bcrypt = Bcrypt(app)
 
 MOCK_USERS = get_mock_users()  
 
-# # Handler for preflight requests (OPTIONS)
-# @app.before_request
-# def handle_preflight():
-#     if request.method == "OPTIONS":
-#         response = jsonify({'status': 'ok'})
-#         response.headers.add('Access-Control-Allow-Origin', '*')
-#         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-#         response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-#         response.headers.add('Access-Control-Max-Age', '3600')
-#         return response, 200
+# Handler for preflight requests (OPTIONS)
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Max-Age', '3600')
+        return response, 200
 
 # Database configuration
 DATABASE_URL = os.getenv('DATABASE_URL')
 db = None
 DATABASE_TYPE = 'Mock Data'
 IS_PERSISTENT = False
-
-# if DATABASE_URL:
-#     print(f"🔍 DATABASE_URL found: {DATABASE_URL[:50]}...")
-#     try:
-#         from flask_sqlalchemy import SQLAlchemy
-        
-#         # Convertir postgres:// a postgresql://
-#         if DATABASE_URL.startswith('postgres://'):
-#             DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-        
-#         app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
-#         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-#         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-#             'pool_pre_ping': True,
-#             'pool_recycle': 300,
-#         }
-        
-#         db = SQLAlchemy(app)
-#         DATABASE_TYPE = 'PostgreSQL'
-#         IS_PERSISTENT = True
-#         app.DATABASE_TYPE = DATABASE_TYPE
-#         print("✅ PostgreSQL configured!")
-            
-#     except Exception as e:
-#         print(f"❌ PostgreSQL setup failed: {e}")
-#         db = None
 
 if DATABASE_URL:
     print(f"🔍 DATABASE_URL found: {DATABASE_URL[:50]}...")
@@ -93,7 +67,6 @@ if DATABASE_URL:
             db = SQLAlchemy(app)
             DATABASE_TYPE = 'PostgreSQL'
             IS_PERSISTENT = True
-            app.DATABASE_TYPE = DATABASE_TYPE  # Store for init_db module
             print("✅ PostgreSQL with pg8000 configured!")
         except ImportError as e:
             print(f"⚠️ pg8000 not available: {e}")
@@ -951,7 +924,57 @@ def delete_time_entry(entry_id):
     
     return jsonify({'message': 'Entry deleted (mock)'}), 200
 
-init_database(app, db)
+# =================== INITIALIZATION ===================
+def init_database():
+    if not db:
+        print("⚠️ No database, using mock data")
+        return
+    
+    try:
+        with app.app_context():
+            print("🔄 Checking database structure...")
+            try:
+                result = db.session.execute(db.text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users' 
+                    AND column_name = 'users_password'
+                """))
+                has_users_password = result.fetchone() is not None
+                
+                if not has_users_password:
+                    print("⚠️  Column 'users_password' does not exist, checking alternatives...")
+                    
+                    result = db.session.execute(db.text("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name = 'users' 
+                        AND column_name = 'password'
+                    """))
+                    has_password = result.fetchone() is not None
+                    
+                    if has_password:
+                        print("✅ Renaming 'password' to 'users_password'...")
+                        db.session.execute(db.text("ALTER TABLE users RENAME COLUMN password TO users_password"))
+                        db.session.commit()
+                        print("✅ Migration completed!")
+                    else:
+                        print("⚠️  Creating column 'users_password'...")
+                        db.session.execute(db.text("ALTER TABLE users ADD COLUMN users_password VARCHAR(255)"))
+                        db.session.commit()
+                        print("✅ Column created!")
+                else:
+                    print("✅ Column 'users_password' exists correctly")
+                    
+            except Exception as e:
+                print(f"⚠️ Error in automatic migration: {e}")
+                
+            print(f"✅ Using existing {DATABASE_TYPE} tables")
+                
+    except Exception as e:
+        print(f"⚠️ Database init info: {e}")
+
+init_database()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
