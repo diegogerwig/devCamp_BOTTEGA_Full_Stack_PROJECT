@@ -45,41 +45,14 @@ db = None
 DATABASE_TYPE = 'Mock Data'
 IS_PERSISTENT = False
 
-if DATABASE_URL:
-    print(f"🔍 DATABASE_URL found: {DATABASE_URL[:50]}...")
-    try:
-        from flask_sqlalchemy import SQLAlchemy
-        
-        # Convertir postgres:// a postgresql://
-        if DATABASE_URL.startswith('postgres://'):
-            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-        
-        app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
-        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-            'pool_pre_ping': True,
-            'pool_recycle': 300,
-        }
-        
-        db = SQLAlchemy(app)
-        DATABASE_TYPE = 'PostgreSQL'
-        IS_PERSISTENT = True
-        app.DATABASE_TYPE = DATABASE_TYPE
-        print("✅ PostgreSQL configured!")
-            
-    except Exception as e:
-        print(f"❌ PostgreSQL setup failed: {e}")
-        db = None
-
 # if DATABASE_URL:
 #     print(f"🔍 DATABASE_URL found: {DATABASE_URL[:50]}...")
 #     try:
 #         from flask_sqlalchemy import SQLAlchemy
         
+#         # Convertir postgres:// a postgresql://
 #         if DATABASE_URL.startswith('postgres://'):
-#             DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+pg8000://', 1)
-#         elif DATABASE_URL.startswith('postgresql://'):
-#             DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+pg8000://', 1)
+#             DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
         
 #         app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 #         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -88,20 +61,47 @@ if DATABASE_URL:
 #             'pool_recycle': 300,
 #         }
         
-#         try:
-#             import pg8000
-#             db = SQLAlchemy(app)
-#             DATABASE_TYPE = 'PostgreSQL'
-#             IS_PERSISTENT = True
-#             app.DATABASE_TYPE = DATABASE_TYPE  # Store for init_db module
-#             print("✅ PostgreSQL with pg8000 configured!")
-#         except ImportError as e:
-#             print(f"⚠️ pg8000 not available: {e}")
-#             db = None
+#         db = SQLAlchemy(app)
+#         DATABASE_TYPE = 'PostgreSQL'
+#         IS_PERSISTENT = True
+#         app.DATABASE_TYPE = DATABASE_TYPE
+#         print("✅ PostgreSQL configured!")
             
 #     except Exception as e:
 #         print(f"❌ PostgreSQL setup failed: {e}")
 #         db = None
+
+if DATABASE_URL:
+    print(f"🔍 DATABASE_URL found: {DATABASE_URL[:50]}...")
+    try:
+        from flask_sqlalchemy import SQLAlchemy
+        
+        if DATABASE_URL.startswith('postgres://'):
+            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+pg8000://', 1)
+        elif DATABASE_URL.startswith('postgresql://'):
+            DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+pg8000://', 1)
+        
+        app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True,
+            'pool_recycle': 300,
+        }
+        
+        try:
+            import pg8000
+            db = SQLAlchemy(app)
+            DATABASE_TYPE = 'PostgreSQL'
+            IS_PERSISTENT = True
+            app.DATABASE_TYPE = DATABASE_TYPE  # Store for init_db module
+            print("✅ PostgreSQL with pg8000 configured!")
+        except ImportError as e:
+            print(f"⚠️ pg8000 not available: {e}")
+            db = None
+            
+    except Exception as e:
+        print(f"❌ PostgreSQL setup failed: {e}")
+        db = None
 
 # =================== AUXILIARY FUNCTIONS FOR DATES ===================
 def parse_datetime_string(datetime_str):
