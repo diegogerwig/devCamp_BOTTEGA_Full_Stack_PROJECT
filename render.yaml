@@ -17,7 +17,9 @@ services:
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: postgresql://timetracer_user:PASSWORD@HOST:5432/timetracer_db
+        fromDatabase:
+          name: timetracer-db
+          property: connectionString
 
   # Frontend Static Site
   - type: web
@@ -29,3 +31,9 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20.19.0
+
+databases:
+  - name: timetracer-db
+    databaseName: timetracer
+    user: timetracer_user
+    plan: starter

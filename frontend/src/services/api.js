@@ -1,69 +1,72 @@
-import axios from 'axios';
+import axios from "axios";
 
-// URL confirmada del backend
-const API_URL = 'https://time-tracer-bottega-back.onrender.com';
+const API_URL = "https://time-tracer-bottega-back.onrender.com";
 
-console.log('🌐 API URL configurada:', API_URL);
+console.log("🌐 API URL configured:", API_URL);
 
 const api = axios.create({
   baseURL: API_URL,
   timeout: 60000,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    "Content-Type": "application/json",
+  },
 });
 
-// Interceptor para añadir el token a todas las peticiones
+// Interceptor to add token to all requests
 api.interceptors.request.use(
   (config) => {
-    console.log('📤 Enviando petición a:', config.url);
-    const token = localStorage.getItem('token');
+    console.log("📤 Sending request to:", config.url);
+    const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('🔑 Token añadido a la petición');
+      console.log("🔑 Token added to request");
     }
     return config;
   },
   (error) => {
-    console.error('❌ Error en interceptor de request:', error);
+    console.error("❌ Error in request interceptor:", error);
     return Promise.reject(error);
   }
 );
 
-// Interceptor para manejar errores de autenticación
+// Interceptor to handle authentication errors
 api.interceptors.response.use(
   (response) => {
-    console.log('✅ Respuesta recibida:', response.status, response.data);
+    console.log("✅ Response received:", response.status, response.data);
     return response;
   },
   (error) => {
-    console.error('❌ Error en respuesta:', error);
-    console.error('📄 Status:', error.response?.status);
-    console.error('📄 Data:', error.response?.data);
-    console.error('📄 URL:', error.config?.url);
-    
-    // SOLO logout si es un error 401 en una petición que NO sea /api/auth/me
-    if (error.response?.status === 401 && !error.config?.url?.includes('/api/auth/me')) {
-      console.log('🚪 Token inválido en petición protegida, limpiando sesión');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/';
+    console.error("❌ Response error:", error);
+    console.error("📄 Status:", error.response?.status);
+    console.error("📄 Data:", error.response?.data);
+    console.error("📄 URL:", error.config?.url);
+
+    // ONLY logout if it's a 401 error on a request that is NOT /api/auth/me
+    if (
+      error.response?.status === 401 &&
+      !error.config?.url?.includes("/api/auth/me") &&
+      !error.config?.url?.includes("/api/auth/login")
+    ) {
+      console.log("🚪 Invalid token on protected request, clearing session");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/";
     }
     return Promise.reject(error);
   }
 );
 
-// Funciones de autenticación
+// Authentication functions
 export const authAPI = {
   login: (email, password) => {
-    console.log('🔐 authAPI.login llamado con email:', email);
-    return api.post('/api/auth/login', { email, password });
+    console.log("🔐 authAPI.login called with email:", email);
+    return api.post("/api/auth/login", { email, password });
   },
-  register: (userData) => api.post('/api/auth/register', userData),
-  getCurrentUser: () => api.get('/api/auth/me')
+  register: (userData) => api.post("/api/auth/register", userData),
+  getCurrentUser: () => api.get("/api/auth/me"),
 };
 
-// Funciones de usuarios
+// User functions
 export const usersAPI = {
   getAll: () => api.get("/api/users"),
   create: (userData) => api.post("/api/users", userData),
@@ -71,12 +74,13 @@ export const usersAPI = {
   delete: (userId) => api.delete(`/api/users/${userId}`),
 };
 
-// Funciones de time entries
+// Time entry functions
 export const timeEntriesAPI = {
-  getAll: () => api.get('/api/time-entries'),
-  create: (entryData) => api.post('/api/time-entries', entryData),
-  update: (entryId, entryData) => api.put(`/api/time-entries/${entryId}`, entryData),
-  delete: (entryId) => api.delete(`/api/time-entries/${entryId}`)
+  getAll: () => api.get("/api/time-entries"),
+  create: (entryData) => api.post("/api/time-entries", entryData),
+  update: (entryId, entryData) =>
+    api.put(`/api/time-entries/${entryId}`, entryData),
+  delete: (entryId) => api.delete(`/api/time-entries/${entryId}`),
 };
 
 export default api;
