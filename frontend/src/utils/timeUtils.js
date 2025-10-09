@@ -1,8 +1,4 @@
-/**
- * Formatea una fecha ISO a hora local del usuario
- * @param {string} isoString - Fecha en formato ISO
- * @returns {string} - Fecha formateada en hora local
- */
+// Formats an ISO date to user's local time
 export const formatLocalDateTime = (isoString) => {
   if (!isoString) return "N/A";
 
@@ -16,11 +12,7 @@ export const formatLocalDateTime = (isoString) => {
   });
 };
 
-/**
- * Formatea una fecha ISO a hora local (solo hora)
- * @param {string} isoString - Fecha en formato ISO
- * @returns {string} - Hora formateada
- */
+// Formats an ISO date to local time (time only)
 export const formatLocalTime = (isoString) => {
   if (!isoString) return "N/A";
 
@@ -31,12 +23,7 @@ export const formatLocalTime = (isoString) => {
   });
 };
 
-/**
- * Calcula la duración entre dos fechas en formato horas:minutos
- * @param {string} checkIn - Hora de entrada ISO
- * @param {string|null} checkOut - Hora de salida ISO (null si está en curso)
- * @returns {string} - Duración en formato "Xh Ym"
- */
+// Calculates duration between two dates in hours:minutes format
 export const calculateDuration = (checkIn, checkOut) => {
   if (!checkIn) return "0h 0m";
 
@@ -50,12 +37,7 @@ export const calculateDuration = (checkIn, checkOut) => {
   return `${hours}h ${minutes}m`;
 };
 
-/**
- * Calcula las horas totales en formato decimal
- * @param {string} checkIn - Hora de entrada ISO
- * @param {string|null} checkOut - Hora de salida ISO
- * @returns {number} - Horas en formato decimal
- */
+ // Calculates total hours in decimal format
 export const calculateTotalHours = (checkIn, checkOut) => {
   if (!checkIn || !checkOut) return 0;
 
@@ -66,25 +48,18 @@ export const calculateTotalHours = (checkIn, checkOut) => {
   return (diffMs / (1000 * 60 * 60)).toFixed(2);
 };
 
-/**
- * NUEVA FUNCIÓN: Obtiene la fecha y hora actual en hora local en formato compatible con backend
- * Retorna en formato ISO pero preservando la zona horaria local
- * @returns {string} - Fecha actual en formato ISO con zona horaria
- */
+// Gets current local date and time in backend-compatible format
 export const getCurrentLocalDateTime = () => {
   const now = new Date();
-  // Obtener el offset de la zona horaria en minutos
+  // Get timezone offset in minutes
   const timezoneOffset = now.getTimezoneOffset();
-  // Ajustar la fecha para obtener la hora local
+  // Adjust date for local time
   const localDate = new Date(now.getTime() - timezoneOffset * 60 * 1000);
-  // Retornar en formato ISO pero sin la Z (que indica UTC)
+  // Return ISO without Z (indicating UTC)
   return localDate.toISOString().slice(0, -1);
 };
 
-/**
- * NUEVA FUNCIÓN: Obtiene solo la fecha actual en formato YYYY-MM-DD
- * @returns {string} - Fecha en formato YYYY-MM-DD
- */
+// Gets current date only in YYYY-MM-DD format
 export const getCurrentLocalDate = () => {
   const now = new Date();
   const year = now.getFullYear();
@@ -93,11 +68,7 @@ export const getCurrentLocalDate = () => {
   return `${year}-${month}-${day}`;
 };
 
-/**
- * Formatea una fecha ISO a formato datetime-local para inputs HTML
- * @param {string} isoString - Fecha en formato ISO
- * @returns {string} - Fecha formateada para input datetime-local
- */
+// Formats an ISO date to datetime-local for HTML inputs
 export const formatForDateTimeInput = (isoString) => {
   if (!isoString) return "";
 
@@ -111,14 +82,10 @@ export const formatForDateTimeInput = (isoString) => {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
-/**
- * MODIFICADA: Convierte un valor de input datetime-local a formato ISO sin conversión UTC
- * @param {string} dateTimeLocalValue - Valor del input datetime-local
- * @returns {string} - Fecha en formato ISO sin conversión a UTC
- */
+// Converts datetime-local input value to ISO without UTC conversion
 export const dateTimeInputToISO = (dateTimeLocalValue) => {
   if (!dateTimeLocalValue) return null;
-  // No usar new Date().toISOString() porque convierte a UTC
-  // En su lugar, simplemente añadir segundos y milisegundos
+  // Avoid new Date().toISOString() as it converts to UTC
+  // Instead, append seconds and milliseconds
   return dateTimeLocalValue + ":00.000";
 };
