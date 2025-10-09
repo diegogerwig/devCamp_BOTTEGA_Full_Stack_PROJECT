@@ -7,7 +7,7 @@ import sys
 from datetime import datetime, timedelta
 from auth import token_required, admin_required, manager_or_admin_required
 from data.mock_data import get_mock_users  
-from src.init_db import verify_tables, create_default_admin
+from src.init_db import *
 
 app = Flask(__name__)
 
