@@ -29,17 +29,6 @@ bcrypt = Bcrypt(app)
 
 MOCK_USERS = get_mock_users()  
 
-# # Handler for preflight requests (OPTIONS)
-# @app.before_request
-# def handle_preflight():
-#     if request.method == "OPTIONS":
-#         response = jsonify({'status': 'ok'})
-#         response.headers.add('Access-Control-Allow-Origin', '*')
-#         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-#         response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-#         response.headers.add('Access-Control-Max-Age', '3600')
-#         return response, 200
-
 # Database configuration
 DATABASE_URL = os.getenv('DATABASE_URL')
 db = None
@@ -77,42 +66,6 @@ if DATABASE_URL:
     except Exception as e:
         print(f"❌ PostgreSQL setup failed: {e}")
         db = None
-
-# # =================== AUXILIARY FUNCTIONS FOR DATES ===================
-# def parse_datetime_string(datetime_str):
-#     """
-#     Parses a date/time coming from the frontend in local time.
-#     Frontend sends: '2025-10-07T14:30:00.000'
-#     We parse it as naive datetime (without timezone info) to preserve local time
-#     """
-#     if not datetime_str:
-#         return None
-    
-#     try:
-#         if datetime_str.endswith('Z'):
-#             datetime_str = datetime_str[:-1]
-        
-#         if '.' in datetime_str:
-#             return datetime.strptime(datetime_str, '%Y-%m-%dT%H:%M:%S.%f')
-#         else:
-#             return datetime.strptime(datetime_str, '%Y-%m-%dT%H:%M:%S')
-#     except Exception as e:
-#         print(f"⚠️ Error parsing date '{datetime_str}': {e}")
-#         return None
-
-# def datetime_to_string(dt):
-#     """
-#     Converts a datetime object to ISO format string without timezone conversion.
-#     Returns: '2025-10-07T14:30:00.000'
-#     """
-#     if not dt:
-#         return None
-    
-#     if isinstance(dt, str):
-#         return dt
-    
-#     # Format without Z (which would indicate UTC)
-#     return dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
 
 # =================== MODELS ===================
 if db:
