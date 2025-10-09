@@ -2,7 +2,7 @@ from datetime import datetime
 
 def define_models(db):
 
-    from src.date_utils import datetime_to_string
+    from date_utils import datetime_to_string
     
     class User(db.Model):
         __tablename__ = 'users'
