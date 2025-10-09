@@ -26,7 +26,7 @@ function WorkerDashboard() {
 			const entriesRes = await timeEntriesAPI.getAll();
 			const myEntries = entriesRes.data.time_entries.filter(e => e.user_id === user.id);
 			
-			// Ordenar por fecha y hora de entrada (más reciente primero)
+			// Sort by check-in date and time (most recent first)
 			myEntries.sort((a, b) => {
 				const dateCompare = new Date(b.check_in) - new Date(a.check_in);
 				return dateCompare;
@@ -34,30 +34,30 @@ function WorkerDashboard() {
 			
 			setTimeEntries(myEntries);
 
-			// Verificar si hay UN REGISTRO ABIERTO (sin check_out) de CUALQUIER fecha
+			// Check if there is ONE OPEN RECORD (without check_out) from ANY date
 			const open = myEntries.find(e => e.check_out === null);
 			setHasOpenEntry(!!open);
 			setOpenEntry(open || null);
 			
 			if (open) {
-				console.log('📌 Registro abierto encontrado:', {
+				console.log('📌 Open record found:', {
 					id: open.id,
 					date: open.date,
 					check_in: open.check_in
 				});
 			} else {
-				console.log('✅ No hay registros abiertos');
+				console.log('✅ No open records');
 			}
 		} catch (error) {
-			console.error('Error cargando datos:', error);
-			alert(error.response?.data?.message || 'Error al cargar datos');
+			console.error('Error loading data:', error);
+			alert(error.response?.data?.message || 'Error loading data');
 		}
 		setLoading(false);
 	};
 
 	const handleCheckIn = async () => {
 		if (hasOpenEntry) {
-			alert(`Ya tienes un registro abierto desde el ${openEntry.date} a las ${formatLocalDateTime(openEntry.check_in)}. Debes cerrarlo antes de abrir uno nuevo.`);
+			alert(`You already have an open record from ${openEntry.date} at ${formatLocalDateTime(openEntry.check_in)}. You must close it before opening a new one.`);
 			return;
 		}
 
@@ -71,23 +71,23 @@ function WorkerDashboard() {
 				check_in: now,
 				check_out: null,
 				total_hours: null,
-				notes: 'Registro de entrada'
+				notes: 'Check-in record'
 			};
 
-			console.log('✅ Creando nuevo registro:', newEntry);
+			console.log('✅ Creating new record:', newEntry);
 			const response = await timeEntriesAPI.create(newEntry);
-			console.log('✅ Check-in exitoso:', response.data);
+			console.log('✅ Successful check-in:', response.data);
 			await loadData();
 		} catch (error) {
-			console.error('❌ Error en check-in:', error);
+			console.error('❌ Check-in error:', error);
 			console.error('📄 Error response:', error.response?.data);
-			alert(error.response?.data?.message || 'Error al registrar entrada');
+			alert(error.response?.data?.message || 'Error registering check-in');
 		}
 	};
 
 	const handleCheckOut = async () => {
 		if (!hasOpenEntry || !openEntry) {
-			alert('No tienes un registro abierto');
+			alert('You do not have an open record');
 			return;
 		}
 
@@ -101,17 +101,17 @@ function WorkerDashboard() {
 				check_in: openEntry.check_in,
 				check_out: now,
 				total_hours: totalHours,
-				notes: openEntry.notes || 'Registro completado'
+				notes: openEntry.notes || 'Record completed'
 			};
 
-			console.log('✅ Cerrando registro:', updatedEntry);
+			console.log('✅ Closing record:', updatedEntry);
 			const response = await timeEntriesAPI.create(updatedEntry);
-			console.log('✅ Check-out exitoso:', response.data);
+			console.log('✅ Successful check-out:', response.data);
 			await loadData();
 		} catch (error) {
-			console.error('❌ Error en check-out:', error);
+			console.error('❌ Check-out error:', error);
 			console.error('📄 Error response:', error.response?.data);
-			alert(error.response?.data?.message || 'Error al registrar salida');
+			alert(error.response?.data?.message || 'Error registering check-out');
 		}
 	};
 
@@ -120,7 +120,7 @@ function WorkerDashboard() {
 			<div className="min-h-screen bg-gray-900 flex items-center justify-center">
 				<div className="text-center">
 					<div className="animate-spin w-16 h-16 border-4 border-gray-600 border-t-blue-500 rounded-full mx-auto mb-4"></div>
-					<p className="text-gray-300 text-xl">Cargando Dashboard...</p>
+					<p className="text-gray-300 text-xl">Loading Dashboard...</p>
 				</div>
 			</div>
 		);
@@ -136,7 +136,7 @@ function WorkerDashboard() {
 					<div className="flex justify-between items-center mb-8">
 						<div>
 							<h1 className="text-4xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
-								Mi Panel de Trabajo
+								My Work Dashboard
 							</h1>
 							<p className="text-gray-400 mt-2">
 								{user.name} - {user.department}
@@ -146,13 +146,13 @@ function WorkerDashboard() {
 							onClick={logout}
 							className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
 						>
-							🚪 Cerrar Sesión
+							🚪 Log Out
 						</button>
 					</div>
 
 					{/* Check In/Out Section */}
 					<div className="bg-gradient-to-br from-blue-900 to-purple-900 border border-blue-700 rounded-2xl p-8 mb-8 shadow-2xl">
-						<h2 className="text-2xl font-bold mb-6 text-center">Registro de Jornada</h2>
+						<h2 className="text-2xl font-bold mb-6 text-center">Shift Record</h2>
 
 						<div className="flex flex-col md:flex-row gap-4 justify-center items-center">
 							<button
@@ -163,7 +163,7 @@ function WorkerDashboard() {
 									: 'bg-green-600 hover:bg-green-700 hover:scale-105 shadow-lg'
 									}`}
 							>
-								✅ Marcar Entrada
+								✅ Check In
 							</button>
 
 							<button
@@ -174,7 +174,7 @@ function WorkerDashboard() {
 									: 'bg-red-600 hover:bg-red-700 hover:scale-105 shadow-lg'
 									}`}
 							>
-								🚪 Marcar Salida
+								🚪 Check Out
 							</button>
 						</div>
 
@@ -182,16 +182,16 @@ function WorkerDashboard() {
 							<div className="mt-6 text-center">
 								<div className="bg-green-900/50 border border-green-600 rounded-lg p-4 inline-block">
 									<p className="text-green-300 mb-2">
-										✅ Tienes una jornada activa
+										✅ You have an active shift
 									</p>
 									<p className="text-green-200 text-sm">
-										Fecha: {openEntry.date}
+										Date: {openEntry.date}
 									</p>
 									<p className="text-green-200 text-sm">
-										Entrada: {formatLocalDateTime(openEntry.check_in)}
+										Check In: {formatLocalDateTime(openEntry.check_in)}
 									</p>
 									<p className="text-green-200 text-sm font-bold mt-2">
-										Tiempo transcurrido: {calculateDuration(openEntry.check_in, null)}
+										Elapsed Time: {calculateDuration(openEntry.check_in, null)}
 									</p>
 								</div>
 							</div>
@@ -205,7 +205,7 @@ function WorkerDashboard() {
 								<div className="text-4xl font-bold text-green-400 mb-2">
 									{totalHours.toFixed(1)}h
 								</div>
-								<div className="text-gray-300">Horas Totales</div>
+								<div className="text-gray-300">Total Hours</div>
 							</div>
 						</div>
 						<div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
@@ -213,7 +213,7 @@ function WorkerDashboard() {
 								<div className="text-4xl font-bold text-blue-400 mb-2">
 									{timeEntries.filter(e => e.check_out !== null).length}
 								</div>
-								<div className="text-gray-300">Registros Completados</div>
+								<div className="text-gray-300">Completed Records</div>
 							</div>
 						</div>
 						<div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
@@ -221,7 +221,7 @@ function WorkerDashboard() {
 								<div className="text-4xl font-bold text-purple-400 mb-2">
 									{timeEntries.length}
 								</div>
-								<div className="text-gray-300">Registros Totales</div>
+								<div className="text-gray-300">Total Records</div>
 							</div>
 						</div>
 					</div>
@@ -229,17 +229,17 @@ function WorkerDashboard() {
 					{/* My Time Entries */}
 					<div className="bg-gray-800 border border-gray-700 rounded-xl p-8">
 						<h2 className="text-2xl font-bold mb-8 text-center text-white">
-							Mi Historial de Tiempo
+							My Time History
 						</h2>
 
 						{timeEntries.length === 0 ? (
 							<div className="text-center py-12">
 								<div className="text-6xl mb-4">⏰</div>
 								<h3 className="text-xl font-semibold text-gray-300 mb-2">
-									Aún no tienes registros
+									You don't have records yet
 								</h3>
 								<p className="text-gray-500">
-									Usa los botones de arriba para marcar tu entrada y salida
+									Use the buttons above to mark your check-in and check-out
 								</p>
 							</div>
 						) : (
@@ -247,11 +247,11 @@ function WorkerDashboard() {
 								<table className="w-full">
 									<thead>
 										<tr className="border-b-2 border-gray-700">
-											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Fecha</th>
-											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Entrada</th>
-											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Salida</th>
-											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Duración</th>
-											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Estado</th>
+											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Date</th>
+											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Check In</th>
+											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Check Out</th>
+											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Duration</th>
+											<th className="text-left py-3 px-4 text-gray-400 font-semibold">Status</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -263,7 +263,7 @@ function WorkerDashboard() {
 													{entry.check_out ? (
 														formatLocalDateTime(entry.check_out)
 													) : (
-														<span className="text-green-400 font-semibold">En curso</span>
+														<span className="text-green-400 font-semibold">In Progress</span>
 													)}
 												</td>
 												<td className="py-3 px-4 font-bold text-green-400">
@@ -272,11 +272,11 @@ function WorkerDashboard() {
 												<td className="py-3 px-4">
 													{entry.check_out === null ? (
 														<span className="px-3 py-1 bg-green-600 text-green-100 rounded-full text-xs font-bold">
-															ACTIVO
+															ACTIVE
 														</span>
 													) : (
 														<span className="px-3 py-1 bg-gray-600 text-gray-200 rounded-full text-xs font-bold">
-															CERRADO
+															CLOSED
 														</span>
 													)}
 												</td>
