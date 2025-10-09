@@ -71,55 +71,6 @@ if DATABASE_URL:
         print(f"❌ PostgreSQL setup failed: {e}")
         db = None
 
-# # =================== MODELS ===================
-# if db:
-#     class User(db.Model):
-#         __tablename__ = 'users'
-        
-#         id = db.Column(db.Integer, primary_key=True)
-#         name = db.Column(db.String(100), nullable=False)
-#         email = db.Column(db.String(120), unique=True, nullable=False)
-#         users_password = db.Column('users_password', db.String(255), nullable=False)
-#         role = db.Column(db.String(20), nullable=False, default='worker')
-#         department = db.Column(db.String(50), nullable=False)
-#         status = db.Column(db.String(20), nullable=False, default='active')
-#         created_at = db.Column(db.DateTime, default=datetime.now)
-        
-#         def to_dict(self):
-#             return {
-#                 'id': self.id,
-#                 'name': self.name,
-#                 'email': self.email,
-#                 'role': self.role,
-#                 'department': self.department,
-#                 'status': self.status,
-#                 'created_at': self.created_at.isoformat()
-#             }
-
-#     class TimeEntry(db.Model):
-#         __tablename__ = 'time_entries'
-        
-#         id = db.Column(db.Integer, primary_key=True)
-#         user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-#         date = db.Column(db.Date, nullable=False)
-#         check_in = db.Column(db.DateTime, nullable=True)
-#         check_out = db.Column(db.DateTime, nullable=True)
-#         total_hours = db.Column(db.Float, nullable=True)
-#         notes = db.Column(db.Text, nullable=True)
-#         created_at = db.Column(db.DateTime, default=datetime.now)
-        
-#         def to_dict(self):
-#             return {
-#                 'id': self.id,
-#                 'user_id': self.user_id,
-#                 'date': self.date.isoformat(),
-#                 'check_in': datetime_to_string(self.check_in),
-#                 'check_out': datetime_to_string(self.check_out),
-#                 'total_hours': self.total_hours,
-#                 'notes': self.notes,
-#                 'created_at': self.created_at.isoformat()
-#             }
-
 # =================== PUBLIC DOCUMENTATION ROUTES ===================
 
 @app.route('/favicon.svg')
@@ -294,7 +245,7 @@ def health_check():
 
 @app.route('/api/docs')
 def api_documentation():
-    """Complete API documentation"""
+    """API documentation"""
     base_url = request.url_root.rstrip('/')
     
     return jsonify({
@@ -339,6 +290,7 @@ def api_documentation():
 # =================== AUTHENTICATION ===================
 @app.route('/api/auth/login', methods=['POST'])
 def login():
+    """User login to obtain JWT token"""
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')
@@ -400,6 +352,7 @@ def login():
 @app.route('/api/auth/me', methods=['GET'])
 @token_required
 def get_current_user():
+    """Get current authenticated user details"""
     user_id = get_jwt_identity()
     claims = get_jwt()
     
@@ -427,6 +380,7 @@ def get_current_user():
 @app.route('/api/users', methods=['GET'])
 @token_required
 def get_users():
+    """Get a list of users based on role and department"""
     claims = get_jwt()
     user_role = claims.get('role')
     user_dept = claims.get('department')
@@ -468,6 +422,7 @@ def get_users():
 @app.route('/api/users', methods=['POST'])
 @admin_required
 def create_user():
+    """Create a new user (admin only)"""
     try:
         claims = get_jwt()
         user_role = claims.get('role')
@@ -545,6 +500,7 @@ def create_user():
 @app.route('/api/users/<int:user_id>', methods=['PUT'])
 @admin_required
 def update_user(user_id):
+    """Update an existing user (admin only)"""
     try:
         data = request.get_json()
         current_user_id = int(get_jwt_identity())
@@ -622,6 +578,7 @@ def update_user(user_id):
 @app.route('/api/users/<int:user_id>', methods=['DELETE'])
 @admin_required
 def delete_user(user_id):
+    """Delete a user (admin only)"""
     current_user_id = int(get_jwt_identity())
     
     if user_id == current_user_id:
@@ -658,6 +615,7 @@ def delete_user(user_id):
 @app.route('/api/time-entries', methods=['GET'])
 @token_required
 def get_time_entries():
+    """Get time entries based on user role and department"""
     claims = get_jwt()
     user_role = claims.get('role')
     user_dept = claims.get('department')
@@ -692,6 +650,7 @@ def get_time_entries():
 @app.route('/api/time-entries', methods=['POST'])
 @token_required
 def create_time_entry():
+    """Create or update a time entry"""
     claims = get_jwt()
     user_role = claims.get('role')
     user_id = int(get_jwt_identity())
@@ -785,6 +744,7 @@ def create_time_entry():
 @app.route('/api/time-entries/<int:entry_id>', methods=['PUT'])
 @manager_or_admin_required
 def update_time_entry(entry_id):
+    """Update a time entry (manager/admin only)"""
     claims = get_jwt()
     user_role = claims.get('role')
     user_dept = claims.get('department')
@@ -852,6 +812,7 @@ def update_time_entry(entry_id):
 @app.route('/api/time-entries/<int:entry_id>', methods=['DELETE'])
 @manager_or_admin_required
 def delete_time_entry(entry_id):
+    """Delete a time entry (manager/admin only)"""
     claims = get_jwt()
     user_role = claims.get('role')
     user_dept = claims.get('department')
