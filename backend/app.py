@@ -248,26 +248,49 @@ def api_documentation():
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     """User login - returns JWT token"""
-    data = request.get_json()
-    
-    if not data:
-        return jsonify({'message': 'Request body is required'}), 400
-    
-    email = data.get('email')
-    password = data.get('password')
-    
-    if not email or not password:
-        return jsonify({'message': 'Email and password required'}), 400
+    print("=" * 50)
+    print("🔐 LOGIN ATTEMPT")
     
     try:
+        data = request.get_json()
+        print(f"📦 Request data received: {data is not None}")
+        
+        if not data:
+            print("❌ No request body")
+            return jsonify({'message': 'Request body is required'}), 400
+        
+        email = data.get('email')
+        password = data.get('password')
+        print(f"📧 Email: {email}")
+        print(f"🔑 Password received: {bool(password)}")
+        
+        if not email or not password:
+            print("❌ Missing email or password")
+            return jsonify({'message': 'Email and password required'}), 400
+        
+        # Database query
+        print(f"🔍 Searching user with email: {email}")
         user = User.query.filter_by(email=email).first()
         
         if not user:
+            print(f"❌ User not found: {email}")
             return jsonify({'message': 'Invalid credentials'}), 401
         
-        if not bcrypt.check_password_hash(user.users_password, password):
+        print(f"✅ User found: {user.name} (ID: {user.id})")
+        print(f"👤 Role: {user.role}")
+        print(f"🏢 Department: {user.department}")
+        
+        # Password check
+        print("🔐 Checking password...")
+        password_valid = bcrypt.check_password_hash(user.users_password, password)
+        print(f"🔐 Password valid: {password_valid}")
+        
+        if not password_valid:
+            print("❌ Invalid password")
             return jsonify({'message': 'Invalid credentials'}), 401
         
+        # Create JWT token
+        print("🎫 Creating access token...")
         access_token = create_access_token(
             identity=str(user.id),
             additional_claims={
@@ -277,16 +300,30 @@ def login():
                 'department': user.department
             }
         )
+        print("✅ Token created successfully")
         
-        return jsonify({
+        response_data = {
             'message': 'Login successful',
             'access_token': access_token,
             'user': user.to_dict()
-        }), 200
+        }
+        print("✅ Login successful!")
+        print("=" * 50)
+        
+        return jsonify(response_data), 200
+        
+    except AttributeError as e:
+        print(f"❌ AttributeError (model issue): {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Model error: {str(e)}'}), 500
         
     except Exception as e:
-        print(f"Login error: {e}")
-        return jsonify({'message': 'Server error'}), 500
+        print(f"❌ Unexpected error in login: {e}")
+        print(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Server error: {str(e)}'}), 500
 
 @app.route('/api/auth/me', methods=['GET'])
 @token_required
@@ -294,16 +331,30 @@ def get_current_user():
     """Get current authenticated user"""
     try:
         user_id = int(get_jwt_identity())
+        print(f"🔍 Getting user with ID: {user_id}")
+        
         user = User.query.get(user_id)
         
         if not user:
+            print(f"❌ User not found with ID: {user_id}")
             return jsonify({'message': 'User not found'}), 404
         
-        return jsonify({'user': user.to_dict()}), 200
+        print(f"✅ User found: {user.name}")
+        user_dict = user.to_dict()
+        
+        return jsonify({'user': user_dict}), 200
+        
+    except AttributeError as e:
+        print(f"❌ Model error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Model error: {str(e)}'}), 500
         
     except Exception as e:
-        print(f"Get current user error: {e}")
-        return jsonify({'message': 'Server error'}), 500
+        print(f"❌ Get current user error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Server error: {str(e)}'}), 500
 
 # =================== USER MANAGEMENT ===================
 @app.route('/api/users', methods=['GET'])
@@ -675,6 +726,56 @@ def delete_time_entry(entry_id):
 
 # =================== INITIALIZATION ===================
 init_database(app, db)
+
+# =================== DEBUG ENDPOINT (remove in production) ===================
+@app.route('/api/debug/db-status', methods=['GET'])
+def debug_db_status():
+    """Debug endpoint to check database status"""
+    try:
+        # Check connection
+        db.session.execute(db.text('SELECT 1'))
+        
+        # Get counts
+        user_count = User.query.count()
+        entry_count = TimeEntry.query.count()
+        
+        # Get sample users (without passwords)
+        users = User.query.limit(5).all()
+        user_list = []
+        for u in users:
+            try:
+                user_list.append({
+                    'id': u.id,
+                    'name': u.name,
+                    'email': u.email,
+                    'role': u.role,
+                    'department': u.department,
+                    'has_password': bool(u.users_password)
+                })
+            except Exception as e:
+                user_list.append({
+                    'error': str(e),
+                    'user_id': u.id if hasattr(u, 'id') else 'unknown'
+                })
+        
+        return jsonify({
+            'database': 'connected',
+            'users': {
+                'total': user_count,
+                'sample': user_list
+            },
+            'time_entries': {
+                'total': entry_count
+            }
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'database': 'error',
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
