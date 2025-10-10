@@ -1,9 +1,9 @@
 # TimeTracer - Work Hours Management System
 
 ![TimeTracer](https://img.shields.io/badge/TimeTracer-v1.0.0-blue)
-![Python](https://img.shields.io/badge/Python-3.11-green)
-![Node](https://img.shields.io/badge/Node-20.19-green)
-![React](https://img.shields.io/badge/React-19.1-blue)
+![Python](https://img.shields.io/badge/Python-3.11.8-green)
+![Node](https://img.shields.io/badge/Node-20.19.0-green)
+![React](https://img.shields.io/badge/React-19.1.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 Complete work hours management system with role-based access control, check-in/check-out tracking, and team management by departments.
@@ -17,6 +17,7 @@ Complete work hours management system with role-based access control, check-in/c
 - [Features](#-features)
 - [Technologies](#️-technologies)
 - [Architecture](#️-architecture)
+- [Quick Start](#-quick-start)
 - [API Endpoints](#-api-endpoints)
 - [Roles and Permissions](#-roles-and-permissions)
 - [Database Structure](#-database-structure)
@@ -33,10 +34,9 @@ Complete work hours management system with role-based access control, check-in/c
 |---------|-----|
 | **Frontend (Production)** | [https://time-tracer-bottega-front.onrender.com](https://time-tracer-bottega-front.onrender.com) |
 | **Backend API** | [https://time-tracer-bottega-back.onrender.com](https://time-tracer-bottega-back.onrender.com) |
-| **API Documentation** | [https://time-tracer-bottega-back.onrender.com/](https://time-tracer-bottega-back.onrender.com/) |
+| **API Documentation** | [https://time-tracer-bottega-back.onrender.com/api/docs](https://time-tracer-bottega-back.onrender.com/api/docs) |
 | **GitHub Repository** | [https://github.com/diegogerwig/devCamp_BOTTEGA_Full_Stack_PROJECT](https://github.com/diegogerwig/devCamp_BOTTEGA_Full_Stack_PROJECT) |
 | **Capstone Requirements** | [Capstone Requirements](./doc/Capstone%20Requirements.md) |
-| **Capstone Proposal** | [Capstone Proposal](./doc/Capstone%20Proposal.md) |
 
 ---
 
@@ -57,60 +57,85 @@ Complete work hours management system with role-based access control, check-in/c
 ## ✨ Features
 
 ### 🔐 Authentication System
-- Secure login with JWT tokens
-- Session persistence
+- Secure login with JWT tokens (24-hour expiration)
+- Session persistence via localStorage
 - Email and password validation
 - Role-based route protection
+- Automatic token refresh
 
 ### 👥 User Management (Admin)
 - Create users with different roles
-- Edit user information
+- Edit user information (name, email, password, role, department)
 - Delete users and their records
 - Assign departments
+- Cannot edit/delete own user
 
 ### ⏰ Work Hours Tracking
 - **Check-in/Check-out** with automatic timestamp
-- Multiple records per day
-- Open record validation
+- One active record at a time per user
+- Validation to prevent multiple open entries
 - Automatic calculation of worked hours
-- Edit and delete based on permissions
-- Local timezone preservation
+- Edit and delete based on permissions (Admin/Manager only)
+- Local timezone preservation (no UTC conversion)
+- Notes field for additional information
 
 ### 📊 Personalized Dashboards
-- **Admin**: Complete system view with statistics
-- **Manager**: Team and department management
-- **Worker**: Personal work hours tracking
+
+**Admin Dashboard:**
+- Complete system view with statistics
+- User management (create, edit, delete)
+- Access to all time entries
+- Edit and delete any record
+
+**Manager Dashboard:**
+- Personal time tracking (check-in/check-out)
+- View and manage team members' records
+- Cannot edit/delete own time entries
+- Department-specific view
+- Team roster display
+
+**Worker Dashboard:**
+- Personal work hours tracking
+- Check-in/check-out functionality
+- View own entry history
+- Total hours worked statistics
+- Real-time duration display for active shifts
 
 ### 🔒 Permission Control
 - Granular permissions by role
 - Edit and delete restrictions
 - Department validation for managers
 - Self-edit/delete protection
+- One open entry per user at a time
 
 ---
 
 ## 🛠️ Technologies
 
 ### Frontend
-- **React 19.1** - UI Library
-- **Vite 7.1** - Build tool
-- **Tailwind CSS 4.1** - Styling
-- **Axios** - HTTP client
+- **React 19.1.1** - UI Library
+- **Vite 7.1.2** - Build tool and dev server
+- **Tailwind CSS 3.4.17** - Utility-first CSS framework
+- **Axios 1.12.1** - HTTP client for API requests
 - **React Context API** - State management
+- **ESLint 9.33.0** - Code linting
 
 ### Backend
-- **Flask 2.3** - Web framework
+- **Flask 2.3.3** - Python web framework
 - **PostgreSQL (Render)** - Production database
-- **SQLAlchemy** - ORM
-- **Flask-JWT-Extended** - Authentication
-- **Flask-Bcrypt** - Password hashing
-- **Flask-CORS** - CORS handling
-- **Gunicorn** - WSGI server
+- **SQLAlchemy 3.0.5** - ORM for database operations
+- **pg8000 1.30.3** - Pure-Python PostgreSQL driver
+- **Flask-JWT-Extended 4.6.0** - JWT authentication
+- **Flask-Bcrypt 1.0.1** - Password hashing
+- **Flask-CORS 4.0.0** - CORS handling
+- **Gunicorn 21.2.0** - WSGI HTTP server
 
 ### Infrastructure
 - **Render.com** - Cloud hosting platform
 - **PostgreSQL (Managed)** - Persistent database
 - **Git/GitHub** - Version control
+- **Python 3.11.8** - Backend runtime
+- **Node.js 20.19.0** - Frontend build environment
 
 ---
 
@@ -119,30 +144,118 @@ Complete work hours management system with role-based access control, check-in/c
 ```
 timetracer/
 ├── backend/                    # Flask API
-│   ├── app.py                 # Main application
+│   ├── app.py                 # Main application with all routes
 │   ├── auth.py                # Authentication decorators
 │   ├── requirements.txt       # Python dependencies
-│   ├── Procfile              # Render config
-│   └── runtime.txt           # Python version
+│   ├── Procfile              # Render deployment config
+│   ├── runtime.txt           # Python version specification
+│   ├── data/
+│   │   └── mock_data.py      # Mock users for testing
+│   └── src/
+│       ├── connection_db.py  # Database connection setup
+│       ├── init_db.py        # Database initialization
+│       ├── models.py         # SQLAlchemy models
+│       └── date_utils.py     # Date/time utility functions
 │
 ├── frontend/                   # React SPA
 │   ├── src/
 │   │   ├── components/       # Reusable components
+│   │   │   └── Login.jsx    # Login form component
 │   │   ├── views/           # Role-based dashboards
-│   │   ├── context/         # Context API
+│   │   │   ├── AdminDashboard.jsx
+│   │   │   ├── ManagerDashboard.jsx
+│   │   │   └── WorkerDashboard.jsx
+│   │   ├── context/         # React Context
+│   │   │   └── AuthContext.jsx
 │   │   ├── services/        # API services
+│   │   │   └── api.js       # Axios configuration
 │   │   ├── utils/           # Utilities
-│   │   ├── App.jsx          # Main component
-│   │   └── main.jsx         # Entry point
+│   │   │   └── timeUtils.js # Date/time helpers
+│   │   ├── App.jsx          # Main app component
+│   │   ├── main.jsx         # Entry point
+│   │   └── index.css        # Tailwind imports
+│   ├── index.html
 │   ├── package.json
-│   └── vite.config.js
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   └── postcss.config.js
 │
-├── doc/                       # Documentation
+├── .env.example               # Environment variables template
 ├── .gitignore
+├── .node-version
 ├── LICENSE
 ├── README.md
-└── render.yaml               # Deployment config
+└── render.yaml               # Render deployment config
 ```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.11.8
+- Node.js 20.19.0
+- PostgreSQL (for local development)
+
+### Backend Setup
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/diegogerwig/devCamp_BOTTEGA_Full_Stack_PROJECT.git
+cd devCamp_BOTTEGA_Full_Stack_PROJECT
+```
+
+2. **Create and configure .env file**
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+```
+
+3. **Set up Python virtual environment**
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+4. **Install dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+5. **Run the backend**
+```bash
+python app.py
+```
+
+Backend will run on `http://localhost:5000`
+
+### Frontend Setup
+
+1. **Install dependencies**
+```bash
+cd frontend
+npm install
+```
+
+2. **Configure environment variables**
+```bash
+# Create .env file in frontend directory
+VITE_API_URL=http://localhost:5000
+VITE_DEMO_ADMIN_EMAIL=admin@timetracer.com
+VITE_DEMO_ADMIN_PASSWORD=your_admin_password
+VITE_DEMO_MANAGER_EMAIL=juan@company.com
+VITE_DEMO_MANAGER_PASSWORD=your_manager_password
+VITE_DEMO_WORKER_EMAIL=maria@company.com
+VITE_DEMO_WORKER_PASSWORD=your_worker_password
+```
+
+3. **Run the frontend**
+```bash
+npm run dev
+```
+
+Frontend will run on `http://localhost:5173`
 
 ---
 
@@ -150,15 +263,17 @@ timetracer/
 
 ### Base URL
 ```
-https://time-tracer-bottega-back.onrender.com
+Production: https://time-tracer-bottega-back.onrender.com
+Local: http://localhost:5000
 ```
 
 ### Public Endpoints
 
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/` | GET | No | API documentation and live statistics |
-| `/api/health` | GET | No | Health check for monitoring |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | API documentation and live statistics |
+| `/api/health` | GET | Health check for monitoring |
+| `/api/docs` | GET | Complete API documentation |
 
 ### Authentication Endpoints
 
@@ -167,7 +282,7 @@ https://time-tracer-bottega-back.onrender.com
 | `/api/auth/login` | POST | No | User login - Returns JWT token |
 | `/api/auth/me` | GET | JWT | Get current authenticated user |
 
-**Login Request Body:**
+**Login Request:**
 ```json
 {
   "email": "user@example.com",
@@ -178,7 +293,7 @@ https://time-tracer-bottega-back.onrender.com
 **Login Response:**
 ```json
 {
-  "message": "Login exitoso",
+  "message": "Login successful",
   "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
   "user": {
     "id": 1,
@@ -200,27 +315,16 @@ https://time-tracer-bottega-back.onrender.com
 | `/api/users/:id` | PUT | JWT (Admin) | Update user (cannot edit self) |
 | `/api/users/:id` | DELETE | JWT (Admin) | Delete user and all records |
 
-**Create User Request:**
-```json
-{
-  "name": "New User",
-  "email": "new@company.com",
-  "password": "password123",
-  "role": "worker",
-  "department": "Operations"
-}
-```
-
 ### Time Entries Endpoints
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
 | `/api/time-entries` | GET | JWT | List entries (filtered by role) |
 | `/api/time-entries` | POST | JWT | Create/update entry (check-in/out) |
-| `/api/time-entries/:id` | PUT | JWT (Manager/Admin) | Edit entry (not own records for managers) |
-| `/api/time-entries/:id` | DELETE | JWT (Manager/Admin) | Delete entry (not own records for managers) |
+| `/api/time-entries/:id` | PUT | JWT (Manager/Admin) | Edit entry (not own for managers) |
+| `/api/time-entries/:id` | DELETE | JWT (Manager/Admin) | Delete entry (not own for managers) |
 
-**Create Entry (Check-in) Request:**
+**Create Entry (Check-in):**
 ```json
 {
   "user_id": 3,
@@ -231,7 +335,7 @@ https://time-tracer-bottega-back.onrender.com
 }
 ```
 
-**Update Entry (Check-out) Request:**
+**Update Entry (Check-out):**
 ```json
 {
   "user_id": 3,
@@ -245,8 +349,7 @@ https://time-tracer-bottega-back.onrender.com
 
 ### Using the API
 
-**Authentication:**
-All protected endpoints require a JWT token in the Authorization header:
+All protected endpoints require JWT token in Authorization header:
 ```
 Authorization: Bearer YOUR_JWT_TOKEN_HERE
 ```
@@ -256,26 +359,28 @@ Authorization: Bearer YOUR_JWT_TOKEN_HERE
 # Login
 curl -X POST https://time-tracer-bottega-back.onrender.com/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"your@email.com","password":"your_password"}'
+  -d '{"email":"admin@timetracer.com","password":"your_password"}'
 
-# Use token in subsequent requests
+# Use token
 curl https://time-tracer-bottega-back.onrender.com/api/users \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
-**Example with JavaScript:**
+**Example with JavaScript (Axios):**
 ```javascript
+import axios from 'axios';
+
 // Login
-const response = await fetch('https://time-tracer-bottega-back.onrender.com/api/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email: 'your@email.com', password: 'your_password' })
+const response = await axios.post('https://time-tracer-bottega-back.onrender.com/api/auth/login', {
+  email: 'admin@timetracer.com',
+  password: 'your_password'
 });
-const { access_token } = await response.json();
+
+const token = response.data.access_token;
 
 // Use token
-const users = await fetch('https://time-tracer-bottega-back.onrender.com/api/users', {
-  headers: { 'Authorization': `Bearer ${access_token}` }
+const users = await axios.get('https://time-tracer-bottega-back.onrender.com/api/users', {
+  headers: { Authorization: `Bearer ${token}` }
 });
 ```
 
@@ -284,7 +389,7 @@ const users = await fetch('https://time-tracer-bottega-back.onrender.com/api/use
 ## 👤 Roles and Permissions
 
 ### 🔴 Admin
-**Description:** Full system access
+**Full system access**
 
 **Permissions:**
 - ✅ View all system users
@@ -298,14 +403,15 @@ const users = await fetch('https://time-tracer-bottega-back.onrender.com/api/use
 - ❌ Cannot delete their own user
 
 ### 🔵 Manager
-**Description:** Department management
+**Department management**
 
 **Permissions:**
 - ✅ View users in their department
 - ✅ View time entries from their department
-- ✅ Edit team member entries
-- ✅ Delete team member entries
+- ✅ Edit team member entries (except own)
+- ✅ Delete team member entries (except own)
 - ✅ Record their own work hours (check-in/check-out)
+- ✅ View team statistics
 
 **Restrictions:**
 - ❌ Cannot view users from other departments
@@ -314,13 +420,14 @@ const users = await fetch('https://time-tracer-bottega-back.onrender.com/api/use
 - ❌ Cannot delete their own time entries
 
 ### 🟢 Worker
-**Description:** Personal work hours management
+**Personal work hours management**
 
 **Permissions:**
 - ✅ View their own information
 - ✅ Record check-in (shift start)
 - ✅ Record check-out (shift end)
 - ✅ View their entry history
+- ✅ One active entry at a time
 
 **Restrictions:**
 - ❌ Cannot view other users' information
@@ -339,11 +446,11 @@ const users = await fetch('https://time-tracer-bottega-back.onrender.com/api/use
 | id | INTEGER | Primary Key |
 | name | VARCHAR(100) | User name |
 | email | VARCHAR(120) | Unique email |
-| users_password | VARCHAR(255) | Hashed password |
+| users_password | VARCHAR(255) | Hashed password (bcrypt) |
 | role | VARCHAR(20) | admin, manager, worker |
-| department | VARCHAR(50) | Department |
+| department | VARCHAR(50) | Department name |
 | status | VARCHAR(20) | active, inactive |
-| created_at | DATETIME | Creation date |
+| created_at | DATETIME | Creation timestamp |
 
 ### Table: time_entries
 
@@ -351,56 +458,75 @@ const users = await fetch('https://time-tracer-bottega-back.onrender.com/api/use
 |-------|------|-------------|
 | id | INTEGER | Primary Key |
 | user_id | INTEGER | Foreign Key → users.id |
-| date | DATE | Entry date |
-| check_in | DATETIME | Clock-in time (local) |
-| check_out | DATETIME | Clock-out time (local) |
-| total_hours | FLOAT | Hours worked |
+| date | DATE | Entry date (YYYY-MM-DD) |
+| check_in | DATETIME | Clock-in time (local time) |
+| check_out | DATETIME | Clock-out time (local time, nullable) |
+| total_hours | FLOAT | Hours worked (nullable) |
 | notes | TEXT | Optional notes |
-| created_at | DATETIME | Creation date |
+| created_at | DATETIME | Creation timestamp |
 
 **Indexes:**
-- `user_id` for fast user lookups
-- `date` for date filtering
-- `check_out IS NULL` for open entries
+- `user_id` - Fast user lookups
+- `date` - Date filtering
+- `check_out IS NULL` - Find open entries
+
+**Constraints:**
+- One open entry per user at a time
+- Foreign key cascade on user deletion
 
 ---
 
 ## 🔐 Security
 
-### Implemented Practices
+### Implemented Security Features
 
 ✅ **JWT Authentication**
 - Tokens with 24-hour expiration
-- Automatic refresh on frontend
 - Secure storage in localStorage
+- Automatic refresh on frontend
+- Token validation on every protected request
 
-✅ **Password Hashing**
-- Bcrypt with automatic salt
+✅ **Password Security**
+- Bcrypt hashing with automatic salt
 - Never store plain-text passwords
+- Secure password requirements
 
-✅ **Permission Validation**
-- Decorators on each endpoint
-- Backend role verification
-- Department control for managers
+✅ **Authorization**
+- Role-based access control (RBAC)
+- Route-level permission decorators
+- Department-based filtering for managers
+- Self-edit/delete prevention
 
-✅ **Data Validation**
+✅ **Input Validation**
 - Email format validation
-- Input sanitization
-- Duplicate prevention
+- Required field validation
+- Data type checking
+- SQL injection prevention via ORM
 
 ✅ **CORS Configuration**
-- Allowed origins whitelist
-- Specific allowed headers
-- Restricted HTTP methods
+- Controlled origins whitelist
+- Specific allowed methods
+- Secure headers configuration
 
-### Additional Recommendations
+✅ **API Security**
+- Protected endpoints require authentication
+- 401/403 error handling
+- Request/response interceptors
+- Timeout configuration
+
+### Security Best Practices
 
 ⚠️ **For Production:**
-1. Use environment variables for secrets
-2. Enable HTTPS (Render does this automatically)
-3. Implement rate limiting
-4. Add audit logs
-5. Periodic JWT secret rotation
+1. Use environment variables for all secrets
+2. Enable HTTPS (Render provides this automatically)
+3. Implement rate limiting on API endpoints
+4. Add request logging for audit trails
+5. Regular security updates for dependencies
+6. Periodic JWT secret rotation
+7. Implement account lockout after failed attempts
+8. Use secure session management
+9. Add CSP headers
+10. Regular security audits
 
 ---
 
@@ -416,20 +542,31 @@ Network Error or CORS error
 **Solution:**
 1. Verify backend is running at: https://time-tracer-bottega-back.onrender.com/api/health
 2. Check browser console for specific error messages
-3. Clear browser cache and localStorage
+3. Clear browser cache and localStorage:
+```javascript
+localStorage.clear()
+```
+4. Verify CORS configuration in backend
 
 ---
 
 **Problem:** 401 Unauthorized on all requests
 
 **Solution:**
-1. Verify token is valid
-2. Clear localStorage:
-```javascript
-// In browser console
-localStorage.clear()
-```
-3. Login again
+1. Token may be expired (24h validity)
+2. Clear localStorage and login again
+3. Check token format in Authorization header
+4. Verify backend is running
+
+---
+
+**Problem:** Login button not working
+
+**Solution:**
+1. Check email format validation
+2. Verify credentials in .env file
+3. Check browser console for errors
+4. Ensure backend API is accessible
 
 ---
 
@@ -438,44 +575,65 @@ localStorage.clear()
 **Problem:** Database connection error
 
 **Solution:**
-This is a Render.com deployment - if you see database errors:
 1. Check Render dashboard for service status
 2. Verify PostgreSQL database is active
-3. Check environment variables are set correctly
+3. Check DATABASE_URL environment variable
+4. Review backend logs in Render dashboard
 
 ---
 
-### Timezone Errors
-
-**Problem:** Hours display incorrectly
+**Problem:** Import errors
 
 **Solution:**
-The app handles timestamps in user's local time:
-1. Verify browser timezone configuration
-2. Timestamps are saved preserving local time (no UTC conversion)
-3. Check system time settings
+```bash
+# Reinstall dependencies
+pip install -r requirements.txt
+
+# Check Python version
+python --version  # Should be 3.11.8
+```
 
 ---
 
-## 📞 Contact and Support
+### Timezone Issues
+
+**Problem:** Time displays incorrectly
+
+**Solution:**
+- Application preserves local timezone
+- No UTC conversion on timestamps
+- Verify browser timezone settings
+- Check system time configuration
+- Times stored as-is in database
+
+---
+
+### Build Issues
+
+**Frontend build fails:**
+```bash
+# Clear cache and reinstall
+rm -rf node_modules package-lock.json
+npm install
+npm run build
+```
+
+**Backend deployment fails:**
+```bash
+# Check Python version in runtime.txt
+# Verify all dependencies in requirements.txt
+# Check Render build logs
+```
+
+---
+
+## 📞 Contact 
 
 ### Author
 **Diego Gerwig López**
 
 - GitHub: [@diegogerwig](https://github.com/diegogerwig)
 - LinkedIn: [Diego Gerwig](https://linkedin.com/in/diegogerwig)
-
-### Report Issues
-
-If you find a bug or have a suggestion:
-
-1. Search in [existing Issues](https://github.com/diegogerwig/devCamp_BOTTEGA_Full_Stack_PROJECT/issues)
-2. If it doesn't exist, [create a new issue](https://github.com/diegogerwig/devCamp_BOTTEGA_Full_Stack_PROJECT/issues/new)
-3. Describe the problem in detail:
-   - Steps to reproduce
-   - Expected vs actual behavior
-   - Screenshots if applicable
-   - Browser/system information
 
 ---
 
@@ -509,4 +667,4 @@ SOFTWARE.
 
 ---
 
-*Project developed as Capstone Project for devCAMP BOTTEGA 2025*
+*TimeTracer - Making work hour tracking simple and efficient*
