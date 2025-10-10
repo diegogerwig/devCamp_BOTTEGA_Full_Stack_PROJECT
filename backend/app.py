@@ -14,7 +14,7 @@ from src.models import init_models
 
 app = Flask(__name__)
 
-# 🔧 CORS CONFIGURATION
+# CORS CONFIGURATION
 CORS(app, 
      origins=["https://time-tracer-bottega-front.onrender.com"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -23,7 +23,6 @@ CORS(app,
      max_age=3600)
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-# app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 
 jwt = JWTManager(app)
@@ -32,47 +31,6 @@ bcrypt = Bcrypt(app)
 MOCK_USERS = get_mock_users()  
 
 db, User, TimeEntry, DATABASE_TYPE, IS_PERSISTENT = init_database_connection(app)
-
-# # Database configuration
-# DATABASE_URL = os.getenv('DATABASE_URL')
-# db = None
-# User = None
-# TimeEntry = None
-# DATABASE_TYPE = 'Mock Data'
-# IS_PERSISTENT = False
-
-# if DATABASE_URL:
-#     print(f"🔍 DATABASE_URL found: {DATABASE_URL[:50]}...")
-#     try:
-#         from flask_sqlalchemy import SQLAlchemy
-        
-#         if DATABASE_URL.startswith('postgres://'):
-#             DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+pg8000://', 1)
-#         elif DATABASE_URL.startswith('postgresql://'):
-#             DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+pg8000://', 1)
-        
-#         app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
-#         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-#         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-#             'pool_pre_ping': True,
-#             'pool_recycle': 300,
-#         }
-        
-#         try:
-#             import pg8000
-#             db = SQLAlchemy(app)
-#             User, TimeEntry = init_models(db)
-#             DATABASE_TYPE = 'PostgreSQL'
-#             IS_PERSISTENT = True
-#             app.DATABASE_TYPE = DATABASE_TYPE  # Store for init_db module
-#             print("✅ PostgreSQL with pg8000 configured!")
-#         except ImportError as e:
-#             print(f"⚠️ pg8000 not available: {e}")
-#             db = None
-            
-#     except Exception as e:
-#         print(f"❌ PostgreSQL setup failed: {e}")
-#         db = None
 
 # =================== PUBLIC DOCUMENTATION ROUTES ===================
 
@@ -608,8 +566,6 @@ def delete_user(user_id):
     if not user:
         return jsonify({'message': 'User not found'}), 404
     
-    # global MOCK_TIME_ENTRIES
-    # MOCK_TIME_ENTRIES = [e for e in MOCK_TIME_ENTRIES if e['user_id'] != user_id]
     MOCK_USERS.remove(user)
     
     return jsonify({'message': 'User deleted (mock)'}), 200
