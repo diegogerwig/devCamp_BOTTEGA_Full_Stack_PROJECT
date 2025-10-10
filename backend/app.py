@@ -16,7 +16,7 @@ app = Flask(__name__)
 
 # 🔧 CORS CONFIGURATION
 CORS(app, 
-     origins=["*"],
+     origins=["https://time-tracer-bottega-front.onrender.com"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      allow_headers=["Content-Type", "Authorization"],
      supports_credentials=True,
