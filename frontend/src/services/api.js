@@ -2,7 +2,7 @@ import axios from "axios";
 
 const API_URL = "https://time-tracer-bottega-back.onrender.com";
 
-console.log("🌐 API URL configured:", API_URL);
+console.log("API URL configured:", API_URL);
 
 const api = axios.create({
   baseURL: API_URL,

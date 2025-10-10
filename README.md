@@ -122,7 +122,7 @@ Complete work hours management system with role-based access control, check-in/c
 
 ### Backend
 - **Flask 2.3.3** - Python web framework
-- **PostgreSQL (Render)** - Production database
+- **PostgreSQL 17 (Render)** - Production database
 - **SQLAlchemy 3.0.5** - ORM for database operations
 - **pg8000 1.30.3** - Pure-Python PostgreSQL driver
 - **Flask-JWT-Extended 4.6.0** - JWT authentication
@@ -144,36 +144,36 @@ Complete work hours management system with role-based access control, check-in/c
 ```
 timetracer/
 ├── backend/                    # Flask API
-│   ├── app.py                 # Main application with all routes
-│   ├── auth.py                # Authentication decorators
-│   ├── requirements.txt       # Python dependencies
-│   ├── Procfile              # Render deployment config
-│   ├── runtime.txt           # Python version specification
+│   ├── app.py                  # Main application with all routes
+│   ├── auth.py                 # Authentication decorators
+│   ├── requirements.txt        # Python dependencies
+│   ├── Procfile                # Render deployment config
+│   ├── runtime.txt             # Python version specification
 │   ├── data/
-│   │   └── mock_data.py      # Mock users for testing
+│   │   └── mock_data.py        # Mock users for testing
 │   └── src/
-│       ├── connection_db.py  # Database connection setup
-│       ├── init_db.py        # Database initialization
-│       ├── models.py         # SQLAlchemy models
-│       └── date_utils.py     # Date/time utility functions
+│       ├── connection_db.py    # Database connection setup
+│       ├── init_db.py          # Database initialization
+│       ├── models.py           # SQLAlchemy models
+│       └── date_utils.py       # Date/time utility functions
 │
 ├── frontend/                   # React SPA
 │   ├── src/
-│   │   ├── components/       # Reusable components
-│   │   │   └── Login.jsx    # Login form component
-│   │   ├── views/           # Role-based dashboards
+│   │   ├── components/        # Reusable components
+│   │   │   └── Login.jsx      # Login form component
+│   │   ├── views/             # Role-based dashboards
 │   │   │   ├── AdminDashboard.jsx
 │   │   │   ├── ManagerDashboard.jsx
 │   │   │   └── WorkerDashboard.jsx
-│   │   ├── context/         # React Context
+│   │   ├── context/           # React Context
 │   │   │   └── AuthContext.jsx
-│   │   ├── services/        # API services
-│   │   │   └── api.js       # Axios configuration
-│   │   ├── utils/           # Utilities
-│   │   │   └── timeUtils.js # Date/time helpers
-│   │   ├── App.jsx          # Main app component
-│   │   ├── main.jsx         # Entry point
-│   │   └── index.css        # Tailwind imports
+│   │   ├── services/          # API services
+│   │   │   └── api.js         # Axios configuration
+│   │   ├── utils/             # Utilities
+│   │   │   └── timeUtils.js   # Date/time helpers
+│   │   ├── App.jsx            # Main app component
+│   │   ├── main.jsx           # Entry point
+│   │   └── index.css          # Tailwind imports
 │   ├── index.html
 │   ├── package.json
 │   ├── vite.config.js
@@ -185,77 +185,8 @@ timetracer/
 ├── .node-version
 ├── LICENSE
 ├── README.md
-└── render.yaml               # Render deployment config
+└── render.yaml                # Render deployment config
 ```
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.11.8
-- Node.js 20.19.0
-- PostgreSQL (for local development)
-
-### Backend Setup
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/diegogerwig/devCamp_BOTTEGA_Full_Stack_PROJECT.git
-cd devCamp_BOTTEGA_Full_Stack_PROJECT
-```
-
-2. **Create and configure .env file**
-```bash
-cp .env.example .env
-# Edit .env with your credentials
-```
-
-3. **Set up Python virtual environment**
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-4. **Install dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-5. **Run the backend**
-```bash
-python app.py
-```
-
-Backend will run on `http://localhost:5000`
-
-### Frontend Setup
-
-1. **Install dependencies**
-```bash
-cd frontend
-npm install
-```
-
-2. **Configure environment variables**
-```bash
-# Create .env file in frontend directory
-VITE_API_URL=http://localhost:5000
-VITE_DEMO_ADMIN_EMAIL=admin@timetracer.com
-VITE_DEMO_ADMIN_PASSWORD=your_admin_password
-VITE_DEMO_MANAGER_EMAIL=juan@company.com
-VITE_DEMO_MANAGER_PASSWORD=your_manager_password
-VITE_DEMO_WORKER_EMAIL=maria@company.com
-VITE_DEMO_WORKER_PASSWORD=your_worker_password
-```
-
-3. **Run the frontend**
-```bash
-npm run dev
-```
-
-Frontend will run on `http://localhost:5173`
 
 ---
 
@@ -264,7 +195,6 @@ Frontend will run on `http://localhost:5173`
 ### Base URL
 ```
 Production: https://time-tracer-bottega-back.onrender.com
-Local: http://localhost:5000
 ```
 
 ### Public Endpoints
@@ -281,30 +211,6 @@ Local: http://localhost:5000
 |----------|--------|------|-------------|
 | `/api/auth/login` | POST | No | User login - Returns JWT token |
 | `/api/auth/me` | GET | JWT | Get current authenticated user |
-
-**Login Request:**
-```json
-{
-  "email": "user@example.com",
-  "password": "your_password"
-}
-```
-
-**Login Response:**
-```json
-{
-  "message": "Login successful",
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-  "user": {
-    "id": 1,
-    "name": "User Name",
-    "email": "user@example.com",
-    "role": "admin",
-    "department": "IT",
-    "status": "active"
-  }
-}
-```
 
 ### User Management Endpoints
 
@@ -324,29 +230,6 @@ Local: http://localhost:5000
 | `/api/time-entries/:id` | PUT | JWT (Manager/Admin) | Edit entry (not own for managers) |
 | `/api/time-entries/:id` | DELETE | JWT (Manager/Admin) | Delete entry (not own for managers) |
 
-**Create Entry (Check-in):**
-```json
-{
-  "user_id": 3,
-  "date": "2025-10-08",
-  "check_in": "2025-10-08T08:00:00.000",
-  "check_out": null,
-  "notes": "Start of shift"
-}
-```
-
-**Update Entry (Check-out):**
-```json
-{
-  "user_id": 3,
-  "date": "2025-10-08",
-  "check_in": "2025-10-08T08:00:00.000",
-  "check_out": "2025-10-08T17:00:00.000",
-  "total_hours": 9.0,
-  "notes": "Shift completed"
-}
-```
-
 ### Using the API
 
 All protected endpoints require JWT token in Authorization header:
@@ -364,24 +247,6 @@ curl -X POST https://time-tracer-bottega-back.onrender.com/api/auth/login \
 # Use token
 curl https://time-tracer-bottega-back.onrender.com/api/users \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
-**Example with JavaScript (Axios):**
-```javascript
-import axios from 'axios';
-
-// Login
-const response = await axios.post('https://time-tracer-bottega-back.onrender.com/api/auth/login', {
-  email: 'admin@timetracer.com',
-  password: 'your_password'
-});
-
-const token = response.data.access_token;
-
-// Use token
-const users = await axios.get('https://time-tracer-bottega-back.onrender.com/api/users', {
-  headers: { Authorization: `Bearer ${token}` }
-});
 ```
 
 ---

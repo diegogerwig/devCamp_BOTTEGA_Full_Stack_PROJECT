@@ -1,8 +1,23 @@
-Flask==2.3.3
-Flask-CORS==4.0.0
-Flask-SQLAlchemy==3.0.5
-pg8000==1.30.3
-python-dotenv==1.0.0
-gunicorn==21.2.0
-Flask-JWT-Extended==4.6.0
-Flask-Bcrypt==1.0.1
+# ======================
+# 🧩 Core Framework
+# ======================
+Flask==2.3.3                # Main Python web microframework
+Flask-CORS==4.0.0           # Enables Cross-Origin Resource Sharing (CORS) for API requests
+Flask-SQLAlchemy==3.0.5     # ORM integration for easy database management with SQLAlchemy
+
+# ======================
+# 🔒 Security & Authentication
+# ======================
+Flask-JWT-Extended==4.6.0   # JWT-based authentication for secure user sessions
+Flask-Bcrypt==1.0.1         # Password hashing using the Bcrypt algorithm
+
+# ======================
+# 🗄️ Database
+# ======================
+pg8000==1.30.3              # Pure-Python PostgreSQL driver (no external dependencies)
+
+# ======================
+# ⚙️ Configuration & Deployment
+# ======================
+python-dotenv==1.0.0        # Loads environment variables from a .env file
+gunicorn==21.2.0            # WSGI HTTP server for running Flask in production
